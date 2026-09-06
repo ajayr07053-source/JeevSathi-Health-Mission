@@ -14,16 +14,25 @@ function Home() {
   const [uploadFileBase64, setUploadFileBase64] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  // 🔍 केवल क्लिक करने पर फुल-स्क्रीन पॉपअप खुलेगा (Default: null)
+  // 🔍 फुल-स्क्रीन फ़ोटो प्रिव्यू
   const [selectedImage, setSelectedImage] = useState(null);
 
   // 🔑 एडमिन/स्टाफ स्टेटस
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
 
-  // 🤝 बहु-श्रेणी ऑनबोर्डिंग मोडल (Hospital, Lab, Medical Store, School)
+  // 🤝 ऑनबोर्डिंग मोडल
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [partnerType, setPartnerType] = useState("hospital");
   const [partnerLoading, setPartnerLoading] = useState(false);
+
+  // ❤️ डोनेशन मोडल स्टेट्स
+  const [showDonateModal, setShowDonateModal] = useState(false);
+  const [donateTab, setDonateTab] = useState("online"); // online, bank
+  const [donateAmount, setDonateAmount] = useState(250);
+  const [donorName, setDonorName] = useState("");
+  const [donorMobile, setDonorMobile] = useState("");
+  const [donorPan, setDonorPan] = useState("");
+  const [donateLoading, setDonateLoading] = useState(false);
 
   // लोकेशन स्टेट्स
   const [districtsList, setDistrictsList] = useState([]);
@@ -81,18 +90,17 @@ function Home() {
     fetchGallery();
     loadDistricts();
 
-    // चेक करें कि एडमिन/स्टाफ लॉग इन है या नहीं
     const adminSession = localStorage.getItem("jeevsathi_staff_user") || localStorage.getItem("jeevsathi_admin_user");
     if (adminSession) {
       setIsAdminLoggedIn(true);
     }
 
-    // Esc की दबाने पर फुल-स्क्रीन फ़ोटो बंद होना
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
         setSelectedImage(null);
         setShowUploadModal(false);
         setShowPartnerModal(false);
+        setShowDonateModal(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -233,6 +241,76 @@ function Home() {
     }
   };
 
+  // ❤️ डोनेशन सबमिशन (Razorpay / Test Gateway)
+  const handleDonateSubmit = async (e) => {
+    e.preventDefault();
+    if (!donateAmount || Number(donateAmount) < 10) {
+      alert("कृपया न्यूनतम ₹10 की राशि दर्ज करें!");
+      return;
+    }
+    if (!donorMobile || donorMobile.length !== 10) {
+      alert("कृपया 10 अंकों का मान्य मोबाइल नंबर दर्ज करें!");
+      return;
+    }
+
+    setDonateLoading(true);
+
+    const processDonationRecord = async (paymentId) => {
+      try {
+        await supabase.from("donations").insert([{
+          donor_name: donorName || "Well Wisher",
+          donor_mobile: donorMobile,
+          donor_pan: donorPan || null,
+          amount: Number(donateAmount),
+          payment_mode: "ONLINE_RAZORPAY",
+          payment_id: paymentId,
+          status: "SUCCESS"
+        }]);
+      } catch (err) {
+        console.error("Donation record error:", err);
+      }
+      setDonateLoading(false);
+      alert(`🙏 धन्यवाद ${donorName || "दानदाता"} जी!\n\nJeevSathi Health Mission (Sinux India Foundation) को ₹${donateAmount} का सहयोग देने के लिए आपका हृदय से आभार।`);
+      setShowDonateModal(false);
+      setDonorName("");
+      setDonorMobile("");
+      setDonorPan("");
+    };
+
+    if (window.Razorpay) {
+      const options = {
+        key: "rzp_live_TYDkcyqOaSzOq5",
+        amount: Number(donateAmount) * 100,
+        currency: "INR",
+        name: "Sinux India Foundation",
+        description: "Donation for Free Health Camps & Medicine",
+        image: logo,
+        handler: function (response) {
+          processDonationRecord(response.razorpay_payment_id || "PAY_ONLINE");
+        },
+        prefill: {
+          name: donorName,
+          contact: donorMobile
+        },
+        theme: {
+          color: "#065f46"
+        }
+      };
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", function (response) {
+        alert("भुगतान विफल रहा: " + response.error.description);
+        setDonateLoading(false);
+      });
+      rzp.open();
+    } else {
+      if (window.confirm(`🧪 टेस्ट मोड: क्या आप ₹${donateAmount} का दान कन्फर्म करना चाहते हैं?`)) {
+        processDonationRecord("TEST_DONATION_" + Date.now());
+      } else {
+        setDonateLoading(false);
+      }
+    }
+  };
+
   // 📸 गैलरी अपलोड
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -293,7 +371,7 @@ function Home() {
         </div>
       </div>
 
-      {/* 🟢 NAVBAR */}
+      {/* 🟢 NAVBAR (WITH DONATE BUTTON) */}
       <nav style={styles.navbar}>
         <div style={styles.navBrand}>
           <div style={styles.logoBox}>
@@ -314,7 +392,7 @@ function Home() {
         <div style={styles.navLinks}>
           <Link to="/" style={styles.activeLink}>Home</Link>
           <a href="#services" style={styles.link}>Services</a>
-          <a href="#partners" style={styles.link}>Onboarding</a>
+          <a href="#donation" style={styles.link}>Donate</a>
           <a href="#gallery" style={styles.link}>Camp Gallery</a>
 
           <button onClick={() => navigate("/my-health")} style={styles.patientNavBtn}>
@@ -326,7 +404,12 @@ function Home() {
           </button>
 
           <button onClick={() => { setPartnerType("hospital"); setShowPartnerModal(true); }} style={styles.addHospitalNavBtn}>
-            🤝 Partner Onboarding
+            🤝 Onboarding
+          </button>
+
+          {/* ❤️ NAV DONATE BUTTON */}
+          <button onClick={() => setShowDonateModal(true)} style={styles.donateNavBtn}>
+            ❤️ सहयोग / Donate
           </button>
 
           <button onClick={() => navigate("/emergency")} style={styles.emergencyNavBtn}>
@@ -344,7 +427,7 @@ function Home() {
         <div style={styles.newsLabel}>LATEST UPDATES</div>
         <div style={styles.marqueeContainer}>
           <marquee scrollamount="5" style={{ fontSize: "13px", fontWeight: "600", color: "#1e3a8a", padding: "5px 0" }}>
-            🚀 आगामी महा स्वास्थ्य शिविर में बीपी, शुगर व सामान्य जांच बिल्कुल मुफ्त। • 🏥 50+ नए अस्पतालों व पैथोलॉजी केंद्रों में JeevSathi कार्डधारकों को विशेष छूट। • 🪪 अपना JeevSathi Health Card मात्र ₹150 में बनवाएं। • 📸 गैलरी में किसी भी फ़ोटो पर क्लिक करके पूरा विवरण व बड़ी फ़ोटो देखें!
+            🚀 आगामी महा स्वास्थ्य शिविर में बीपी, शुगर व सामान्य जांच बिल्कुल मुफ्त। • 🏥 50+ नए अस्पतालों व पैथोलॉजी केंद्रों में JeevSathi कार्डधारकों को विशेष छूट। • 🪪 अपना JeevSathi Health Card मात्र ₹150 में बनवाएं। • ❤️ ग्रामीण क्षेत्रों में निशुल्क दवा और शिविरों के लिए सहयोग (Donate) करें।
           </marquee>
         </div>
       </div>
@@ -370,9 +453,9 @@ function Home() {
               <button style={styles.secondaryBtn} onClick={() => navigate("/my-health")}>
                 👤 अपना कार्ड व स्टेटस देखें →
               </button>
-              <a href="#gallery" style={styles.galleryHeroBtn}>
-                📸 कैम्प फ़ोटो गैलरी देखें ↓
-              </a>
+              <button style={styles.donateHeroBtn} onClick={() => setShowDonateModal(true)}>
+                ❤️ मिशन में सहयोग करें (Donate)
+              </button>
             </div>
           </div>
         </div>
@@ -395,6 +478,56 @@ function Home() {
         <div style={styles.statCard}>
           <h3 style={styles.statNumber}>24/7</h3>
           <p style={styles.statText}>Health Guidance</p>
+        </div>
+      </section>
+
+      {/* =========================================================================
+          ❤️ SPECIAL DONATION / SEVA SECTION (सहयोग एवं दान अनुभाग)
+      ========================================================================= */}
+      <section id="donation" style={styles.donationSection}>
+        <div style={styles.donationContainer}>
+          <div style={styles.donationTextWrap}>
+            <span style={styles.donationTag}>मानव सेवा ही ईश्वर सेवा है</span>
+            <h2 style={styles.donationHeading}>स्वास्थ्य सेवा में आपका एक छोटा सहयोग, किसी का जीवन बदल सकता है</h2>
+            <p style={styles.donationDesc}>
+              Sinux India Foundation द्वारा संचालित <strong>JeevSathi Health Mission</strong> के अंतर्गत 
+              दूरदराज के ग्रामीण इलाकों में निशुल्क चिकित्सा शिविर, दवा वितरण और गरीब परिवारों को इलाज में 
+              मदद पहुंचाई जाती है। आपका सहयोग सीधे जरूरतमंदों के स्वास्थ्य लाभ में उपयोग होता है।
+            </p>
+            <div style={styles.donationHighlights}>
+              <span>✓ 100% पारदर्शी और प्रमाणित कार्य</span>
+              <span>✓ निशुल्क दवा एवं जांच शिविर</span>
+              <span>✓ 80G आयकर छूट रसीद उपलब्ध</span>
+            </div>
+          </div>
+
+          <div style={styles.donationActionBox}>
+            <h3 style={{ margin: "0 0 10px 0", color: "#0f172a", fontSize: "18px" }}>सहयोग राशि चुनें (Select Amount)</h3>
+            <p style={{ margin: "0 0 15px 0", fontSize: "12px", color: "#64748b" }}>किसी भी राशि से स्वास्थ्य मिशन का हिस्सा बनें</p>
+
+            <div style={styles.amountSelectorGrid}>
+              {[100, 250, 500, 1100, 2100].map((amt) => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => { setDonateAmount(amt); setShowDonateModal(true); }}
+                  style={donateAmount === amt ? styles.amountBtnActive : styles.amountBtn}
+                >
+                  ₹{amt}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => setShowDonateModal(true)} 
+              style={styles.btnPrimaryDonate}
+            >
+              ❤️ अभी दान करें (Donate Now) →
+            </button>
+            <span style={{ display: "block", textAlign: "center", fontSize: "11px", color: "#64748b", marginTop: "10px" }}>
+              🔒 UPI, Debit/Credit Card, Net Banking द्वारा 100% सुरक्षित
+            </span>
+          </div>
         </div>
       </section>
 
@@ -550,9 +683,7 @@ function Home() {
         </div>
       </section>
 
-      {/* =========================================================================
-          📸 CAMP PHOTO GALLERY (पूरी फ़ोटो बिना कटे साफ़ दिखेगी)
-      ========================================================================= */}
+      {/* 📸 CAMP PHOTO GALLERY */}
       <section id="gallery" style={styles.gallerySection}>
         <div style={styles.sectionHeader}>
           <span style={{ ...styles.sectionTag, color: "#059669" }}>MOMENTS OF SERVICE</span>
@@ -562,7 +693,6 @@ function Home() {
             JeevSathi Mission द्वारा आयोजित हाल ही के कैम्प्स की झलकियाँ। (विस्तृत जानकारी के लिए किसी भी फ़ोटो पर क्लिक करें)
           </p>
 
-          {/* केवल एडमिन/स्टाफ के लिए अपलोड बटन */}
           {isAdminLoggedIn && (
             <div style={{ marginTop: "15px" }}>
               <button onClick={() => setShowUploadModal(true)} style={styles.btnUploadPhoto}>
@@ -572,7 +702,6 @@ function Home() {
           )}
         </div>
 
-        {/* फ़ोटो ग्रिड कार्ड्स */}
         <div style={styles.galleryGrid}>
           {galleryImages.map((img) => (
             <div 
@@ -580,7 +709,6 @@ function Home() {
               style={styles.galleryCard}
               onClick={() => setSelectedImage(img)}
             >
-              {/* 🚀 पूरी फ़ोटो बिना कटे दिखाने हेतु अनुकूलित कंटेनर */}
               <div style={styles.imgWrap}>
                 <img src={img.image_url} alt={img.title} style={styles.galleryImg} />
                 <span style={styles.zoomHint}>🔍 बड़ा देखें</span>
@@ -597,9 +725,7 @@ function Home() {
         </div>
       </section>
 
-      {/* =========================================================================
-          🔍 MODAL: FULL SCREEN PHOTO VIEWER (केवल क्लिक करने पर खुलेगा, ✕ से बंद होगा)
-      ========================================================================= */}
+      {/* 🔍 LIGHTBOX PHOTO VIEWER */}
       {selectedImage && (
         <div style={styles.lightboxOverlay} onClick={() => setSelectedImage(null)}>
           <div style={styles.lightboxBox} onClick={(e) => e.stopPropagation()}>
@@ -611,7 +737,6 @@ function Home() {
               ✕
             </button>
             
-            {/* पूरी फ़ोटो बिना कटे ओरिजिनल आस्पेक्ट में */}
             <div style={styles.lightboxImgContainer}>
               <img src={selectedImage.image_url} alt={selectedImage.title} style={styles.lightboxImg} />
             </div>
@@ -630,6 +755,135 @@ function Home() {
                 {selectedImage.description || "इस स्वास्थ्य शिविर में मरीजों का निशुल्क परीक्षण, ब्लड प्रेशर, शुगर जांच एवं आवश्यक परामर्श प्रदान किया गया।"}
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ❤️ MODAL: DONATE NOW */}
+      {showDonateModal && (
+        <div style={styles.modalOverlay} onClick={() => setShowDonateModal(false)}>
+          <div style={{ ...styles.modalCard, maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+              <div>
+                <h3 style={{ margin: 0, color: "#991b1b", fontSize: "19px" }}>❤️ सहयोग एवं दान (Donation)</h3>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b" }}>Sinux India Foundation • JeevSathi Health Mission</p>
+              </div>
+              <button onClick={() => setShowDonateModal(false)} style={styles.closeBtn}>✕</button>
+            </div>
+
+            <div style={styles.modalTabContainer}>
+              <button 
+                type="button" 
+                onClick={() => setDonateTab("online")} 
+                style={donateTab === "online" ? styles.modalTabActiveRed : styles.modalTab}
+              >
+                💳 ऑनलाइन दान (UPI / Card)
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setDonateTab("bank")} 
+                style={donateTab === "bank" ? styles.modalTabActiveRed : styles.modalTab}
+              >
+                🏦 सीधे बैंक खाता / QR
+              </button>
+            </div>
+
+            {donateTab === "online" ? (
+              <form onSubmit={handleDonateSubmit}>
+                <div style={{ marginBottom: "12px", textAlign: "left" }}>
+                  <label style={styles.formLabel}>सहयोग राशि (Amount in ₹) *</label>
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "8px", flexWrap: "wrap" }}>
+                    {[100, 250, 500, 1100, 2100].map(amt => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setDonateAmount(amt)}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: "6px",
+                          border: donateAmount === amt ? "2px solid #dc2626" : "1px solid #cbd5e1",
+                          background: donateAmount === amt ? "#fee2e2" : "#f8fafc",
+                          color: donateAmount === amt ? "#991b1b" : "#334155",
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                          fontSize: "12px"
+                        }}
+                      >
+                        ₹{amt}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="number"
+                    required
+                    min="10"
+                    placeholder="अन्य राशि दर्ज करें"
+                    style={styles.modalInput}
+                    value={donateAmount}
+                    onChange={e => setDonateAmount(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ marginBottom: "12px", textAlign: "left" }}>
+                  <label style={styles.formLabel}>आपका शुभ नाम (Full Name) *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="उदा. राहुल वर्मा"
+                    style={styles.modalInput}
+                    value={donorName}
+                    onChange={e => setDonorName(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "15px", textAlign: "left" }}>
+                  <div>
+                    <label style={styles.formLabel}>मोबाइल नंबर *</label>
+                    <input
+                      type="tel"
+                      required
+                      maxLength="10"
+                      placeholder="10 अंक"
+                      style={styles.modalInput}
+                      value={donorMobile}
+                      onChange={e => setDonorMobile(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={styles.formLabel}>पैन नंबर (वैकल्पिक)</label>
+                    <input
+                      type="text"
+                      placeholder="80G रसीद हेतु"
+                      style={styles.modalInput}
+                      value={donorPan}
+                      onChange={e => setDonorPan(e.target.value.toUpperCase())}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button type="submit" disabled={donateLoading} style={styles.btnModalDonateSubmit}>
+                    {donateLoading ? "प्रक्रियाधीन..." : `❤️ ₹${donateAmount} का सहयोग करें →`}
+                  </button>
+                  <button type="button" onClick={() => setShowDonateModal(false)} style={styles.btnModalCancel}>
+                    रद्द करें
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div style={{ textAlign: "left", padding: "10px 0" }}>
+                <div style={{ background: "#fef2f2", border: "1px dashed #fca5a5", padding: "14px", borderRadius: "8px", marginBottom: "15px" }}>
+                  <h4 style={{ margin: "0 0 6px 0", color: "#991b1b" }}>🏛️ Sinux India Foundation बैंक विवरण:</h4>
+                  <p style={{ margin: "4px 0", fontSize: "13px", color: "#334155" }}><strong>Account Name:</strong> Sinux India Foundation</p>
+                  <p style={{ margin: "4px 0", fontSize: "13px", color: "#334155" }}><strong>Bank Name:</strong> State Bank of India (SBI)</p>
+                  <p style={{ margin: "4px 0", fontSize: "13px", color: "#334155" }}><strong>Account No:</strong> Contact Office / Scan UPI</p>
+                  <p style={{ margin: "4px 0", fontSize: "13px", color: "#334155" }}><strong>UPI ID:</strong> 7518338831@sbi</p>
+                </div>
+                <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>
+                  *सीधे ट्रांसफर करने के बाद स्क्रीनशॉट हेल्पलाइन नंबर <strong>+91 7518338831</strong> पर भेजें ताकि आपकी रसीद जारी की जा सके।
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -771,6 +1025,9 @@ function Home() {
             <h4>Quick Links</h4>
             <Link to="/my-health" style={styles.footerLink}>Patient Portal</Link>
             <Link to="/partner-hospitals" style={styles.footerLink}>Partner Directory</Link>
+            <span onClick={() => setShowDonateModal(true)} style={{ ...styles.footerLink, color: "#fca5a5", cursor: "pointer", fontWeight: "bold" }}>
+              ❤️ Donate / सहयोग करें
+            </span>
             <Link to="/login" style={styles.footerLink}>Team Login</Link>
             <Link to="/emergency" style={{ ...styles.footerLink, color: "#fca5a5", fontWeight: "bold" }}>🚑 Emergency SOS</Link>
           </div>
@@ -808,6 +1065,7 @@ const styles = {
   patientNavBtn: { backgroundColor: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0", padding: "8px 12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" },
   hospitalNavBtn: { backgroundColor: "#f1f5f9", color: "#0f172a", border: "1px solid #cbd5e1", padding: "8px 12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" },
   addHospitalNavBtn: { backgroundColor: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", padding: "8px 12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" },
+  donateNavBtn: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5", padding: "8px 12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" },
   emergencyNavBtn: { backgroundColor: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", padding: "8px 12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" },
   loginBtn: { backgroundColor: "#f97316", color: "#fff", border: "none", padding: "8px 14px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "12px" },
 
@@ -824,7 +1082,7 @@ const styles = {
   heroButtons: { display: "flex", gap: "12px", flexWrap: "wrap" },
   primaryBtn: { backgroundColor: "#f97316", color: "#fff", border: "none", padding: "13px 20px", borderRadius: "8px", fontWeight: "bold", fontSize: "14px", cursor: "pointer" },
   secondaryBtn: { backgroundColor: "transparent", color: "#fff", border: "2px solid rgba(255,255,255,0.5)", padding: "13px 20px", borderRadius: "8px", fontWeight: "bold", fontSize: "14px", cursor: "pointer" },
-  galleryHeroBtn: { backgroundColor: "#0284c7", color: "#fff", textDecoration: "none", padding: "13px 20px", borderRadius: "8px", fontWeight: "bold", fontSize: "14px", display: "inline-block" },
+  donateHeroBtn: { backgroundColor: "#dc2626", color: "#fff", border: "none", padding: "13px 20px", borderRadius: "8px", fontWeight: "bold", fontSize: "14px", cursor: "pointer", boxShadow: "0 4px 10px rgba(220, 38, 38, 0.35)" },
 
   statsSection: { display: "flex", justifyContent: "center", gap: "20px", padding: "30px 5%", backgroundColor: "#ffffff", boxShadow: "0 10px 30px rgba(0,0,0,0.05)", borderRadius: "15px", width: "85%", margin: "-40px auto 40px", position: "relative", zIndex: 10, flexWrap: "wrap", boxSizing: "border-box" },
   statCard: { textAlign: "center", padding: "10px", flex: "1 1 150px" },
@@ -835,6 +1093,20 @@ const styles = {
   sectionTag: { color: "#f97316", fontSize: "12px", fontWeight: "bold", letterSpacing: "1px" },
   sectionTitle: { margin: "10px 0 10px", fontSize: "28px", color: "#173b2a", fontWeight: "bold" },
   titleUnderline: { width: "60px", height: "4px", background: "#ea580c", margin: "0 auto", borderRadius: "2px" },
+
+  // ❤️ Donation Section Styles
+  donationSection: { padding: "60px 5%", background: "linear-gradient(135deg, #fef2f2 0%, #fff1f2 100%)", borderTop: "1px solid #fecaca", borderBottom: "1px solid #fecaca" },
+  donationContainer: { maxWidth: "1150px", margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "40px", alignItems: "center" },
+  donationTextWrap: { textAlign: "left" },
+  donationTag: { background: "#fee2e2", color: "#991b1b", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold", display: "inline-block", marginBottom: "10px" },
+  donationHeading: { fontSize: "28px", color: "#881337", margin: "0 0 14px 0", lineHeight: "1.3" },
+  donationDesc: { fontSize: "14px", color: "#475569", lineHeight: "1.7", margin: "0 0 20px 0" },
+  donationHighlights: { display: "flex", flexDirection: "column", gap: "8px", fontSize: "13px", fontWeight: "600", color: "#166534" },
+  donationActionBox: { background: "white", padding: "30px 25px", borderRadius: "16px", border: "1px solid #fecaca", boxShadow: "0 10px 25px rgba(225, 29, 72, 0.08)", textAlign: "left" },
+  amountSelectorGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(65px, 1fr))", gap: "8px", marginBottom: "20px" },
+  amountBtn: { padding: "10px 8px", borderRadius: "8px", border: "1px solid #cbd5e1", background: "#f8fafc", color: "#334155", fontWeight: "bold", fontSize: "14px", cursor: "pointer" },
+  amountBtnActive: { padding: "10px 8px", borderRadius: "8px", border: "2px solid #dc2626", background: "#fee2e2", color: "#991b1b", fontWeight: "bold", fontSize: "14px", cursor: "pointer" },
+  btnPrimaryDonate: { width: "100%", background: "linear-gradient(90deg, #dc2626, #b91c1c)", color: "white", border: "none", padding: "14px", borderRadius: "8px", fontWeight: "bold", fontSize: "15px", cursor: "pointer", boxShadow: "0 4px 12px rgba(220, 38, 38, 0.3)" },
 
   partnerSection: { padding: "60px 5%", backgroundColor: "#f0fdf4", borderTop: "1px solid #bbf7d0", borderBottom: "1px solid #bbf7d0" },
   partnerGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "20px", maxWidth: "1200px", margin: "0 auto" },
@@ -861,22 +1133,17 @@ const styles = {
   benefitList: { listStyle: "none", padding: 0, margin: "0 0 20px 0", fontSize: "13px", lineHeight: "1.9", color: "#44403c" },
   cardActionBtn: { background: "#ea580c", color: "white", border: "none", padding: "14px 18px", borderRadius: "8px", fontWeight: "bold", fontSize: "14px", cursor: "pointer", width: "100%" },
 
-  // 📸 Gallery Styles (पूरी फ़ोटो बिना कटे दिखाने हेतु)
   gallerySection: { padding: "60px 5%", backgroundColor: "#ffffff" },
   btnUploadPhoto: { background: "#059669", color: "white", border: "none", padding: "11px 22px", borderRadius: "8px", fontWeight: "bold", fontSize: "14px", cursor: "pointer", boxShadow: "0 2px 8px rgba(5,150,105,0.25)" },
   galleryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "22px", maxWidth: "1200px", margin: "30px auto 0" },
   galleryCard: { background: "white", borderRadius: "12px", overflow: "hidden", border: "1px solid #e2e8f0", boxShadow: "0 4px 12px rgba(0,0,0,0.05)", cursor: "pointer", transition: "transform 0.2s ease" },
-  
-  // कंटेनर को काला बैकग्राउंड व contain प्रॉपर्टी दी गई है
   imgWrap: { position: "relative", width: "100%", height: "220px", background: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center" },
   galleryImg: { width: "100%", height: "100%", objectFit: "contain", display: "block" },
   zoomHint: { position: "absolute", bottom: "8px", right: "8px", background: "rgba(15,23,42,0.85)", color: "white", padding: "4px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" },
-  
   cardInfo: { padding: "14px 16px", textAlign: "left" },
   imgTitle: { margin: "0 0 6px 0", fontSize: "16px", color: "#0f172a", fontWeight: "bold" },
   imgDesc: { margin: 0, fontSize: "13px", color: "#64748b", lineHeight: "1.5", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
 
-  // 🔍 Full Screen Lightbox (क्लिक करने पर ही खुलेगा)
   lightboxOverlay: { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(15, 23, 42, 0.88)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 3000, padding: "15px" },
   lightboxBox: { background: "white", borderRadius: "14px", maxWidth: "850px", width: "100%", maxHeight: "92vh", overflowY: "auto", position: "relative", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.4)" },
   lightboxCloseBtn: { position: "absolute", top: "12px", right: "12px", background: "rgba(0,0,0,0.7)", color: "white", border: "none", width: "34px", height: "34px", borderRadius: "50%", cursor: "pointer", fontSize: "16px", fontWeight: "bold", zIndex: 10 },
@@ -885,17 +1152,18 @@ const styles = {
   lightboxDetails: { padding: "20px 24px", textAlign: "left" },
   btnDone: { background: "#059669", color: "white", border: "none", padding: "6px 14px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "12px" },
 
-  // Common Modals
   modalOverlay: { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000, padding: "15px" },
   modalCard: { background: "white", maxWidth: "460px", width: "100%", maxHeight: "90vh", overflowY: "auto", padding: "25px", borderRadius: "14px", boxShadow: "0 10px 25px rgba(0,0,0,0.15)" },
   closeBtn: { background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#64748b", fontWeight: "bold" },
   formLabel: { display: "block", fontSize: "12px", fontWeight: "bold", color: "#334155", marginBottom: "5px" },
   modalInput: { width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px", boxSizing: "border-box", outline: "none", backgroundColor: "#fff" },
   btnModalSubmit: { flex: 1, background: "#059669", color: "white", border: "none", padding: "12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" },
+  btnModalDonateSubmit: { flex: 1, background: "linear-gradient(90deg, #dc2626, #b91c1c)", color: "white", border: "none", padding: "12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" },
   btnModalCancel: { flex: 1, background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", padding: "12px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" },
   modalTabContainer: { display: "flex", gap: "6px", marginBottom: "15px", overflowX: "auto", borderBottom: "1px solid #e2e8f0", paddingBottom: "8px" },
   modalTab: { padding: "6px 10px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px", fontWeight: "600", cursor: "pointer", color: "#475569", whiteSpace: "nowrap" },
   modalTabActive: { padding: "6px 10px", background: "#065f46", border: "1px solid #065f46", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer", color: "white", whiteSpace: "nowrap" },
+  modalTabActiveRed: { padding: "6px 10px", background: "#dc2626", border: "1px solid #dc2626", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer", color: "white", whiteSpace: "nowrap" },
 
   footer: { backgroundColor: "#173b2a", color: "#d1ebd8", padding: "50px 5% 20px", marginTop: "auto" },
   footerContent: { display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "40px", maxWidth: "1200px", margin: "0 auto 30px" },
