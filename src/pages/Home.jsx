@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { QRCodeSVG } from "qrcode.react"; // 👈 डायनामिक UPI QR जनरेटर
 import logo from "../assets/jeevsathi/logo.png"; 
 import { supabase } from "../supabaseClient";
 
@@ -25,14 +26,17 @@ function Home() {
   const [partnerType, setPartnerType] = useState("hospital");
   const [partnerLoading, setPartnerLoading] = useState(false);
 
-  // ❤️ डोनेशन मोडल स्टेट्स
+  // ❤️ डोनेशन मोडल स्टेट्स (डिफ़ॉल्ट रूप से बैंक व QR दिखेगा)
   const [showDonateModal, setShowDonateModal] = useState(false);
-  const [donateTab, setDonateTab] = useState("online"); // online, bank
+  const [donateTab, setDonateTab] = useState("bank"); // bank, online
   const [donateAmount, setDonateAmount] = useState(250);
   const [donorName, setDonorName] = useState("");
   const [donorMobile, setDonorMobile] = useState("");
   const [donorPan, setDonorPan] = useState("");
   const [donateLoading, setDonateLoading] = useState(false);
+
+  // 📲 UPI पेमेंट लिंक (sinux12@sbi)
+  const upiPaymentUri = `upi://pay?pa=sinux12@sbi&pn=Sinux%20India%20Foundation&mc=0000&mode=02&purpose=00&cu=INR`;
 
   // लोकेशन स्टेट्स
   const [districtsList, setDistrictsList] = useState([]);
@@ -154,7 +158,6 @@ function Home() {
     }
   };
 
-  // 🚀 पार्टनर ऑनबोर्डिंग सबमिट
   const handlePartnerSubmit = async (e) => {
     e.preventDefault();
     setPartnerLoading(true);
@@ -241,7 +244,7 @@ function Home() {
     }
   };
 
-  // ❤️ डोनेशन सबमिशन (Razorpay / Test Gateway)
+  // ❤️ डोनेशन सबमिशन
   const handleDonateSubmit = async (e) => {
     e.preventDefault();
     if (!donateAmount || Number(donateAmount) < 10) {
@@ -270,7 +273,7 @@ function Home() {
         console.error("Donation record error:", err);
       }
       setDonateLoading(false);
-      alert(`🙏 धन्यवाद ${donorName || "दानदाता"} जी!\n\nJeevSathi Health Mission (Sinux India Foundation) को ₹${donateAmount} का सहयोग देने के लिए आपका हृदय से आभार।`);
+      alert(`🙏 धन्यवाद ${donorName || "दानदाता"} जी!\n\nSinux India Foundation को ₹${donateAmount} का सहयोग देने के लिए आपका हृदय से आभार।`);
       setShowDonateModal(false);
       setDonorName("");
       setDonorMobile("");
@@ -283,7 +286,7 @@ function Home() {
         amount: Number(donateAmount) * 100,
         currency: "INR",
         name: "Sinux India Foundation",
-        description: "Donation for Free Health Camps & Medicine",
+        description: "Donation for Free Health Camps & Gau Seva",
         image: logo,
         handler: function (response) {
           processDonationRecord(response.razorpay_payment_id || "PAY_ONLINE");
@@ -303,15 +306,11 @@ function Home() {
       });
       rzp.open();
     } else {
-      if (window.confirm(`🧪 टेस्ट मोड: क्या आप ₹${donateAmount} का दान कन्फर्म करना चाहते हैं?`)) {
-        processDonationRecord("TEST_DONATION_" + Date.now());
-      } else {
-        setDonateLoading(false);
-      }
+      window.open("https://razorpay.me/@sinuxindiafoundationhelp", "_blank");
+      setDonateLoading(false);
     }
   };
 
-  // 📸 गैलरी अपलोड
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -366,12 +365,12 @@ function Home() {
       {/* 🔴 TOP HELPLINE BAR */}
       <div style={styles.topBar}>
         <div style={styles.topBarContent}>
-          <span>📞 Medical Helpline: +91 7518338831 (24x7)</span>
+          <span>📞 Helpline: +91 7518338831 (24x7)</span>
           <span>✉️ support@jeevsathi.org</span>
         </div>
       </div>
 
-      {/* 🟢 NAVBAR (WITH DONATE BUTTON) */}
+      {/* 🟢 NAVBAR */}
       <nav style={styles.navbar}>
         <div style={styles.navBrand}>
           <div style={styles.logoBox}>
@@ -398,7 +397,7 @@ function Home() {
           <button onClick={() => navigate("/my-health")} style={styles.patientNavBtn}>
             👤 Patient Login
           </button>
-          
+           
           <button onClick={() => navigate("/partner-hospitals")} style={styles.hospitalNavBtn}>
             🏥 Partner Hospitals
           </button>
@@ -427,7 +426,7 @@ function Home() {
         <div style={styles.newsLabel}>LATEST UPDATES</div>
         <div style={styles.marqueeContainer}>
           <marquee scrollamount="5" style={{ fontSize: "13px", fontWeight: "600", color: "#1e3a8a", padding: "5px 0" }}>
-            🚀 आगामी महा स्वास्थ्य शिविर में बीपी, शुगर व सामान्य जांच बिल्कुल मुफ्त। • 🏥 50+ नए अस्पतालों व पैथोलॉजी केंद्रों में JeevSathi कार्डधारकों को विशेष छूट। • 🪪 अपना JeevSathi Health Card मात्र ₹150 में बनवाएं। • ❤️ ग्रामीण क्षेत्रों में निशुल्क दवा और शिविरों के लिए सहयोग (Donate) करें।
+            🚀 आगामी महा स्वास्थ्य शिविर में बीपी, शुगर व सामान्य जांच बिल्कुल मुफ्त। • 🏥 50+ नए अस्पतालों व पैथोलॉजी केंद्रों में JeevSathi कार्डधारकों को विशेष छूट। • 🪪 अपना JeevSathi Health Card मात्र ₹150 में बनवाएं। • 🐄 गौ जीवन आश्रय एवं ग्रामीण निशुल्क स्वास्थ्य शिविरों हेतु सहयोग करें।
           </marquee>
         </div>
       </div>
@@ -487,23 +486,21 @@ function Home() {
       <section id="donation" style={styles.donationSection}>
         <div style={styles.donationContainer}>
           <div style={styles.donationTextWrap}>
-            <span style={styles.donationTag}>मानव सेवा ही ईश्वर सेवा है</span>
-            <h2 style={styles.donationHeading}>स्वास्थ्य सेवा में आपका एक छोटा सहयोग, किसी का जीवन बदल सकता है</h2>
+            <span style={styles.donationTag}>मानव सेवा एवं गौ सेवा</span>
+            <h2 style={styles.donationHeading}>आपका एक छोटा सहयोग, किसी का जीवन बदल सकता है</h2>
             <p style={styles.donationDesc}>
-              Sinux India Foundation द्वारा संचालित <strong>JeevSathi Health Mission</strong> के अंतर्गत 
-              दूरदराज के ग्रामीण इलाकों में निशुल्क चिकित्सा शिविर, दवा वितरण और गरीब परिवारों को इलाज में 
-              मदद पहुंचाई जाती है। आपका सहयोग सीधे जरूरतमंदों के स्वास्थ्य लाभ में उपयोग होता है।
+              Sinux India Foundation द्वारा संचालित <strong>JeevSathi Health Mission</strong> एवं <strong>गौ जीवन आश्रय</strong> के अंतर्गत ग्रामीण अंचलों में निशुल्क चिकित्सा शिविर, दवा वितरण और बेसहारा गौवंश के संरक्षण का कार्य किया जाता है। आपका योगदान सीधे धरातल पर सेवा कार्यों में उपयोग होता है।
             </p>
             <div style={styles.donationHighlights}>
-              <span>✓ 100% पारदर्शी और प्रमाणित कार्य</span>
-              <span>✓ निशुल्क दवा एवं जांच शिविर</span>
+              <span>✓ 100% पारदर्शी और प्रमाणित सामाजिक कार्य</span>
+              <span>✓ निशुल्क ग्रामीण दवा एवं स्वास्थ्य परीक्षण</span>
               <span>✓ 80G आयकर छूट रसीद उपलब्ध</span>
             </div>
           </div>
 
           <div style={styles.donationActionBox}>
             <h3 style={{ margin: "0 0 10px 0", color: "#0f172a", fontSize: "18px" }}>सहयोग राशि चुनें (Select Amount)</h3>
-            <p style={{ margin: "0 0 15px 0", fontSize: "12px", color: "#64748b" }}>किसी भी राशि से स्वास्थ्य मिशन का हिस्सा बनें</p>
+            <p style={{ margin: "0 0 15px 0", fontSize: "12px", color: "#64748b" }}>सीधे UPI QR या बैंक खाते में सहयोग करें</p>
 
             <div style={styles.amountSelectorGrid}>
               {[100, 250, 500, 1100, 2100].map((amt) => (
@@ -522,10 +519,10 @@ function Home() {
               onClick={() => setShowDonateModal(true)} 
               style={styles.btnPrimaryDonate}
             >
-              ❤️ अभी दान करें (Donate Now) →
+              ❤️ अभी दान करें / QR देखें →
             </button>
             <span style={{ display: "block", textAlign: "center", fontSize: "11px", color: "#64748b", marginTop: "10px" }}>
-              🔒 UPI, Debit/Credit Card, Net Banking द्वारा 100% सुरक्षित
+              🔒 Google Pay, PhonePe, Paytm, BHIM, Net Banking द्वारा सुरक्षित
             </span>
           </div>
         </div>
@@ -736,7 +733,7 @@ function Home() {
             >
               ✕
             </button>
-            
+             
             <div style={styles.lightboxImgContainer}>
               <img src={selectedImage.image_url} alt={selectedImage.title} style={styles.lightboxImg} />
             </div>
@@ -759,10 +756,12 @@ function Home() {
         </div>
       )}
 
-      {/* ❤️ MODAL: DONATE NOW */}
+      {/* =========================================================================
+          ❤️ MODAL: DONATE NOW (DYNAMIC UPI QR CODE + BANK DETAILS + RAZORPAY)
+      ========================================================================= */}
       {showDonateModal && (
         <div style={styles.modalOverlay} onClick={() => setShowDonateModal(false)}>
-          <div style={{ ...styles.modalCard, maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ ...styles.modalCard, maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
               <div>
                 <h3 style={{ margin: 0, color: "#991b1b", fontSize: "19px" }}>❤️ सहयोग एवं दान (Donation)</h3>
@@ -774,21 +773,77 @@ function Home() {
             <div style={styles.modalTabContainer}>
               <button 
                 type="button" 
-                onClick={() => setDonateTab("online")} 
-                style={donateTab === "online" ? styles.modalTabActiveRed : styles.modalTab}
-              >
-                💳 ऑनलाइन दान (UPI / Card)
-              </button>
-              <button 
-                type="button" 
                 onClick={() => setDonateTab("bank")} 
                 style={donateTab === "bank" ? styles.modalTabActiveRed : styles.modalTab}
               >
-                🏦 सीधे बैंक खाता / QR
+                📲 UPI QR कोड / Bank Transfer
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setDonateTab("online")} 
+                style={donateTab === "online" ? styles.modalTabActiveRed : styles.modalTab}
+              >
+                💳 ऑनलाइन गेटवे (Cards)
               </button>
             </div>
 
-            {donateTab === "online" ? (
+            {/* TAB 1: DYNAMIC GENERATED UPI QR CODE (upi://pay?pa=sinux12@sbi) */}
+            {donateTab === "bank" ? (
+              <div style={{ textAlign: "center", padding: "10px 0" }}>
+                
+                <div style={{ 
+                  background: "#ffffff", 
+                  border: "2px solid #e2e8f0", 
+                  borderRadius: "12px", 
+                  padding: "16px", 
+                  display: "inline-block",
+                  boxShadow: "0 4px 15px rgba(0,0,0,0.08)",
+                  marginBottom: "15px"
+                }}>
+                  <QRCodeSVG 
+                    value={upiPaymentUri} 
+                    size={200}
+                    level="H"
+                    includeMargin={true}
+                  />
+                  <div style={{ marginTop: "8px" }}>
+                    <span style={{ display: "block", fontSize: "13px", fontWeight: "bold", color: "#065f46" }}>
+                      UPI ID: sinux12@sbi
+                    </span>
+                    <span style={{ display: "block", fontSize: "11px", color: "#64748b" }}>
+                      Google Pay, PhonePe, Paytm, BHIM से स्कैन करें
+                    </span>
+                  </div>
+                </div>
+
+                {/* 🏛️ बैंक खाता विवरण */}
+                <div style={{ background: "#fef2f2", border: "1px dashed #fca5a5", padding: "14px", borderRadius: "8px", textAlign: "left" }}>
+                  <h4 style={{ margin: "0 0 8px 0", color: "#991b1b", fontSize: "14px" }}>🏛️ आधिकारिक बैंक खाता विवरण:</h4>
+                  <div style={{ fontSize: "13px", color: "#334155", lineHeight: "1.8" }}>
+                    <div><strong>संस्था का नाम:</strong> Sinux India Foundation</div>
+                    <div><strong>खाता संख्या (A/C No.):</strong> <span style={{ color: "#0f172a", fontSize: "14px", fontWeight: "bold" }}>44220468629</span></div>
+                    <div><strong>बैंक:</strong> State Bank of India (SBI)</div>
+                    <div><strong>IFSC कोड:</strong> <span style={{ color: "#0f172a", fontWeight: "bold" }}>SBIN0012828</span></div>
+                    <div><strong>UPI ID:</strong> <span style={{ color: "#15803d", fontWeight: "bold" }}>sinux12@sbi</span></div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: "15px", display: "flex", gap: "10px" }}>
+                  <a 
+                    href="https://razorpay.me/@sinuxindiafoundationhelp" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    style={{ ...styles.btnPrimaryDonate, textDecoration: "none", textAlign: "center", display: "block", flex: 1, padding: "10px" }}
+                  >
+                    🔗 Razorpay लिंक से दान करें →
+                  </a>
+                  <button type="button" onClick={() => setShowDonateModal(false)} style={{ ...styles.btnModalCancel, flex: 0.5 }}>
+                    बंद करें
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* TAB 2: ONLINE GATEWAY */
               <form onSubmit={handleDonateSubmit}>
                 <div style={{ marginBottom: "12px", textAlign: "left" }}>
                   <label style={styles.formLabel}>सहयोग राशि (Amount in ₹) *</label>
@@ -870,19 +925,6 @@ function Home() {
                   </button>
                 </div>
               </form>
-            ) : (
-              <div style={{ textAlign: "left", padding: "10px 0" }}>
-                <div style={{ background: "#fef2f2", border: "1px dashed #fca5a5", padding: "14px", borderRadius: "8px", marginBottom: "15px" }}>
-                  <h4 style={{ margin: "0 0 6px 0", color: "#991b1b" }}>🏛️ Sinux India Foundation बैंक विवरण:</h4>
-                  <p style={{ margin: "4px 0", fontSize: "13px", color: "#334155" }}><strong>Account Name:</strong> Sinux India Foundation</p>
-                  <p style={{ margin: "4px 0", fontSize: "13px", color: "#334155" }}><strong>Bank Name:</strong> State Bank of India (SBI)</p>
-                  <p style={{ margin: "4px 0", fontSize: "13px", color: "#334155" }}><strong>Account No:</strong> Contact Office / Scan UPI</p>
-                  <p style={{ margin: "4px 0", fontSize: "13px", color: "#334155" }}><strong>UPI ID:</strong> 7518338831@sbi</p>
-                </div>
-                <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>
-                  *सीधे ट्रांसफर करने के बाद स्क्रीनशॉट हेल्पलाइन नंबर <strong>+91 7518338831</strong> पर भेजें ताकि आपकी रसीद जारी की जा सके।
-                </p>
-              </div>
             )}
           </div>
         </div>
@@ -1024,7 +1066,7 @@ function Home() {
           <div style={styles.footerLinks}>
             <h4>Quick Links</h4>
             <Link to="/my-health" style={styles.footerLink}>Patient Portal</Link>
-            <Link to="/partner-hospitals" style={styles.footerLink}>Partner Directory</Link>
+            <Link to="/partner-hospitals" style={styles.footerLink}>Partner Hospitals</Link>
             <span onClick={() => setShowDonateModal(true)} style={{ ...styles.footerLink, color: "#fca5a5", cursor: "pointer", fontWeight: "bold" }}>
               ❤️ Donate / सहयोग करें
             </span>

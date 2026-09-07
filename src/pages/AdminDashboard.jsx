@@ -6,7 +6,7 @@ function AdminDashboard() {
   const navigate = useNavigate();
   
   // === STATES ===
-  const [activeTab, setActiveTab] = useState("analytics"); // analytics, direct_cards, online_paid, approvals, team, gallery, gov_vault, payments, master
+  const [activeTab, setActiveTab] = useState("analytics");
   const [patients, setPatients] = useState([]);
   
   const [usersList, setUsersList] = useState([]);
@@ -25,6 +25,12 @@ function AdminDashboard() {
 
   const [showIdModal, setShowIdModal] = useState(false);
   const [selectedUserForId, setSelectedUserForId] = useState(null);
+
+  // === 📁 GOV VAULT & DOCS STATES (ADDED) ===
+  const [showDocModal, setShowDocModal] = useState(false);
+  const [orgDocsList, setOrgDocsList] = useState([]);
+  const [docForm, setDocForm] = useState({ doc_type: "SECTION_8", doc_title: "Section 8 Certificate", file_url: "" });
+  const [docUploading, setDocUploading] = useState(false);
 
   // === FILTER STATES ===
   const [filterType, setFilterType] = useState("online_paid");
@@ -61,6 +67,10 @@ function AdminDashboard() {
 
       const { data: gData } = await supabase.from("camp_gallery").select("*").order("id", { ascending: false });
       if (gData) setGalleryList(gData);
+
+      // 📂 संस्था के लीगल दस्तावेज़ लोड करना
+      const { data: dData } = await supabase.from("org_documents").select("*");
+      if (dData) setOrgDocsList(dData);
 
     } catch (err) {
       console.error(err);
@@ -113,7 +123,6 @@ function AdminDashboard() {
     return !p.fo_id || !p.fo_name || p.fo_name === "Unassigned" || p.fo_name === "DIRECT" || String(p.fo_name).trim() === "";
   };
 
-  // 👴 सीनियर सिटीजन (60+ आयु) की पहचान
   const isSeniorCitizen = (p) => {
     if (p.is_senior_citizen === true) return true;
     if (p.age && Number(p.age) >= 60) return true;
@@ -123,6 +132,49 @@ function AdminDashboard() {
       if (currentYear - birthYear >= 60) return true;
     }
     return false;
+  };
+
+  // 📂 लीगल डॉक्यूमेंट अपलोड हैंडलर
+  const handleDocFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("⚠️ कृपया 5MB से कम साइज की फ़ाइल चुनें!");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => setDocForm(prev => ({ ...prev, file_url: reader.result }));
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveOrgDoc = async (e) => {
+    e.preventDefault();
+    if (!docForm.file_url) {
+      alert("कृपया सर्टिफिकेट या दस्तावेज की फ़ाइल चुनें!");
+      return;
+    }
+
+    setDocUploading(true);
+    const payload = {
+      doc_type: docForm.doc_type,
+      doc_title: docForm.doc_title,
+      file_url: docForm.file_url,
+      updated_at: new Date()
+    };
+
+    // Upsert (यदि doc_type पहले से है तो अपडेट करें, वरना नया जोड़ें)
+    const { error } = await supabase.from("org_documents").upsert([payload], { onConflict: "doc_type" });
+    setDocUploading(false);
+
+    if (error) {
+      alert("❌ दस्तावेज सेव करने में त्रुटि: " + error.message);
+    } else {
+      alert("🎉 संस्था का दस्तावेज़ सफलतापूर्वक अपलोड हो गया!");
+      setDocForm({ doc_type: "SECTION_8", doc_title: "Section 8 Certificate", file_url: "" });
+      setShowDocModal(false);
+      fetchData();
+    }
   };
 
   // 📥 केवल 60+ बुजुर्गों की CSV रिपोर्ट डाउनलोड
@@ -149,7 +201,7 @@ function AdminDashboard() {
     document.body.removeChild(link);
   };
 
-  // 🏆 समग्र आधिकारिक CSR & सरकारी ग्रांट ऑडिट रिपोर्ट (फोटो, 60+ अलग, कैम्प गैलरी सहित)
+  // 🏆 समग्र आधिकारिक CSR & सरकारी ग्रांट ऑडिट रिपोर्ट
   const generateOfficialImpactReport = () => {
     const seniorList = patients.filter(isSeniorCitizen);
     const generalList = patients.filter(p => !isSeniorCitizen(p));
@@ -1286,12 +1338,12 @@ function AdminDashboard() {
     </div>
   );
 
-  // 9️⃣ 📁 GOV COMPLIANCE & 8-FOLDERS VAULT
+  // 9️⃣ 📁 GOV COMPLIANCE & 8-FOLDERS VAULT (WITH 01 DOC UPLOAD MODAL)
   const renderGovVault = () => {
     const seniorList = patients.filter(isSeniorCitizen);
 
     const vaultFolders = [
-      { id: "01", name: "01 — Registration Documents", desc: "Section 8 License, PAN, 12A/80G, CSR-1, NGO Darpan Unique ID" },
+      { id: "01", name: "01 — Registration Documents", desc: "Section 8 License, PAN, 12A/80G, CSR-1, NGO Darpan Unique ID", isDocFolder: true },
       { id: "02", name: "02 — Senior Citizen Activities", desc: `60+ बुजुर्ग कल्याण कार्यक्रम • वर्तमान सत्यापित लाभार्थी: ${seniorList.length}` },
       { id: "03", name: "03 — Health Camps Summary", desc: `आयोजित कैम्प्स की सूची व फाइल्स • कुल कैम्प: ${campsList.length}` },
       { id: "04", name: "04 — Beneficiary Register", desc: `मरीज़ पंजीकरण डेटाबेस • कुल पंजीकृत: ${patients.length}` },
@@ -1322,9 +1374,25 @@ function AdminDashboard() {
 
         <div style={styles.statsGrid}>
           {vaultFolders.map(f => (
-            <div key={f.id} style={{...styles.card, borderLeft:"4px solid #7c3aed"}}>
+            <div 
+              key={f.id} 
+              onClick={() => { if (f.isDocFolder) setShowDocModal(true); }}
+              style={{
+                ...styles.card, 
+                borderLeft: "4px solid #7c3aed", 
+                cursor: f.isDocFolder ? "pointer" : "default",
+                transition: "transform 0.2s"
+              }}
+            >
               <h4 style={{margin: "0 0 6px 0", color:"#5b21b6", fontSize:"15px"}}>📂 {f.name}</h4>
               <p style={{margin:0, fontSize:"12px", color:"#64748b", lineHeight:"1.5"}}>{f.desc}</p>
+              
+              {f.isDocFolder && (
+                <div style={{marginTop: "12px", fontSize: "11px", fontWeight: "bold", color: "#2563eb"}}>
+                  📄 यहाँ क्लिक करके सर्टिफिकेट अपलोड व देखें → ({orgDocsList.length} Uploaded)
+                </div>
+              )}
+
               <div style={{marginTop:"12px", display:"flex", gap:"8px"}}>
                 <span style={{background:"#f5f3ff", color:"#6d28d9", padding:"3px 8px", borderRadius:"4px", fontSize:"11px", fontWeight:"bold"}}>
                   Ready for Audit
@@ -1333,6 +1401,97 @@ function AdminDashboard() {
             </div>
           ))}
         </div>
+
+        {/* 📂 01 — REGISTRATION DOCUMENTS UPLOAD MODAL */}
+        {showDocModal && (
+          <div style={styles.modalOverlay} onClick={() => setShowDocModal(false)}>
+            <div style={{ ...styles.modalCard, maxWidth: "550px" }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+                <h3 style={{ margin: 0, color: "#0f172a", fontSize: "18px" }}>📂 01 — संस्था के पंजीकरण दस्तावेज़ प्रबंधन</h3>
+                <button onClick={() => setShowDocModal(false)} style={styles.closeBtn}>✕</button>
+              </div>
+
+              <form onSubmit={handleSaveOrgDoc}>
+                <div style={{ marginBottom: "12px", textAlign: "left" }}>
+                  <label style={styles.label}>दस्तावेज़ का प्रकार (Document Type)</label>
+                  <select 
+                    style={styles.select} 
+                    value={docForm.doc_type}
+                    onChange={e => {
+                      const val = e.target.value;
+                      const titles = {
+                        "SECTION_8": "Section 8 Certificate",
+                        "PAN": "Foundation PAN Card",
+                        "12A_80G": "12A & 80G Certificate",
+                        "CSR_1": "CSR-1 Registration",
+                        "DARPAN": "NGO Darpan Unique ID"
+                      };
+                      setDocForm({ ...docForm, doc_type: val, doc_title: titles[val] || "Other Doc" });
+                    }}
+                  >
+                    <option value="SECTION_8">Section 8 Incorporation Certificate</option>
+                    <option value="PAN">Foundation PAN Card</option>
+                    <option value="12A_80G">12A & 80G Tax Exemption Certificate</option>
+                    <option value="CSR_1">CSR-1 Corporate Funding Certificate</option>
+                    <option value="DARPAN">NGO Darpan Unique ID Certificate</option>
+                  </select>
+                </div>
+
+                <div style={{ marginBottom: "12px", textAlign: "left" }}>
+                  <label style={styles.label}>दस्तावेज़ का शीर्षक (Title)</label>
+                  <input 
+                    type="text" 
+                    style={styles.input} 
+                    required
+                    value={docForm.doc_title}
+                    onChange={e => setDocForm({ ...docForm, doc_title: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ marginBottom: "15px", textAlign: "left" }}>
+                  <label style={styles.label}>सर्टिफिकेट/फाइल चुनें (PDF या Image, Max 5MB)</label>
+                  <input type="file" accept="image/*,application/pdf" onChange={handleDocFileSelect} style={{ fontSize: "12px", width: "100%" }} required />
+                </div>
+
+                {docForm.file_url && (
+                  <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "8px", textAlign: "center", marginBottom: "15px" }}>
+                    <span style={{ fontSize: "12px", color: "#16a34a", fontWeight: "bold" }}>✅ फाइल सफलतापूर्वक चुनी गई है (Ready to Save)</span>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button type="submit" disabled={docUploading} style={{ ...styles.btnPrimaryFull, flex: 1, background: "#059669" }}>
+                    {docUploading ? "⏳ अपलोड हो रहा है..." : "💾 दस्तावेज़ सुरक्षित करें (Save)"}
+                  </button>
+                  <button type="button" onClick={() => setShowDocModal(false)} style={{ ...styles.btnModalCancel, flex: 1 }}>
+                    बंद करें
+                  </button>
+                </div>
+              </form>
+
+              {/* पहले से अपलोड किए गए दस्तावेज़ों की सूची */}
+              <div style={{ marginTop: "25px", borderTop: "1px solid #e2e8f0", paddingTop: "15px" }}>
+                <h4 style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#334155" }}>📋 सुरक्षित अपलोड किए गए दस्तावेज़ ({orgDocsList.length}):</h4>
+                <div style={{ maxHeight: "150px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {orgDocsList.map(doc => (
+                    <div key={doc.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc", padding: "8px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                      <div>
+                        <strong style={{ fontSize: "12px", color: "#0f172a" }}>{doc.doc_title}</strong>
+                        <div style={{ fontSize: "10px", color: "#64748b" }}>Type: {doc.doc_type}</div>
+                      </div>
+                      <a href={doc.file_url} target="_blank" rel="noreferrer" style={{ background: "#e0f2fe", color: "#0369a1", padding: "4px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", textDecoration: "none" }}>
+                        👁️ देखें / डाउनलोड
+                      </a>
+                    </div>
+                  ))}
+                  {orgDocsList.length === 0 && <span style={{ fontSize: "12px", color: "#64748b" }}>अभी कोई संस्थागत दस्तावेज़ अपलोड नहीं किया गया है।</span>}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
       </div>
     );
   };
@@ -1462,11 +1621,14 @@ const styles = {
   btnIdCard: { background: "#e0e7ff", color: "#3730a3", border: "1px solid #c7d2fe", padding: "5px 8px", borderRadius: "6px", cursor: "pointer", marginRight: "5px", fontSize: "12px" },
   btnOutline: { background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.3)", color: "white", padding: "8px 14px", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px" },
   btnDanger: { background: "#ef4444", border: "none", color: "white", padding: "8px 14px", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px" },
+  btnModalCancel: { background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", padding: "10px", borderRadius: "6px", fontWeight: "bold", cursor: "pointer", fontSize: "13px" },
+  closeBtn: { background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#64748b", fontWeight: "bold" },
   
   badgeSuccess: { background: "#dcfce7", color: "#166534", padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold" },
   badgeWarning: { background: "#fef3c7", color: "#92400e", padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold" },
 
-  modalOverlay: { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 },
+  modalOverlay: { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, padding: "15px" },
+  modalCard: { background: "white", padding: "25px", borderRadius: "12px", width: "100%", maxWidth: "500px", maxHeight: "90vh", overflowY: "auto" },
   idModalContent: { background: "white", padding: "20px", borderRadius: "12px", width: "280px" },
   idCardDesign: { background: "white", borderRadius: "10px", overflow: "hidden", border: "1px solid #cbd5e1" },
   idCardHeader: { background: "#1e3a8a", padding: "12px", color: "white", textAlign: "center" }
