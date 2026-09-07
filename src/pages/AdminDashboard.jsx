@@ -6,7 +6,7 @@ function AdminDashboard() {
   const navigate = useNavigate();
   
   // === STATES ===
-  const [activeTab, setActiveTab] = useState("analytics"); // analytics, direct_cards, online_paid, approvals, team, payments, master, gallery
+  const [activeTab, setActiveTab] = useState("analytics"); // analytics, direct_cards, online_paid, approvals, team, gallery, gov_vault, payments, master
   const [patients, setPatients] = useState([]);
   
   const [usersList, setUsersList] = useState([]);
@@ -112,6 +112,42 @@ function AdminDashboard() {
 
   const isDirectPatient = (p) => {
     return !p.fo_id || !p.fo_name || p.fo_name === "Unassigned" || p.fo_name === "DIRECT" || String(p.fo_name).trim() === "";
+  };
+
+  // 👴 सीनियर सिटीजन (60+ आयु) पहचान
+  const isSeniorCitizen = (p) => {
+    if (p.is_senior_citizen === true) return true;
+    if (p.age && Number(p.age) >= 60) return true;
+    if (p.dob) {
+      const birthYear = new Date(p.dob).getFullYear();
+      const currentYear = new Date().getFullYear();
+      if (currentYear - birthYear >= 60) return true;
+    }
+    return false;
+  };
+
+  // 📥 सीनियर सिटीजन 1-क्लिक CSV/Excel एक्सपोर्ट (सरकारी ग्रांट हेतु)
+  const exportSeniorCitizenReport = () => {
+    const seniorList = patients.filter(isSeniorCitizen);
+    if (seniorList.length === 0) {
+      alert("कोई 60+ सीनियर सिटीजन रिकॉर्ड नहीं मिला!");
+      return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Beneficiary ID,Patient Name,Guardian Name,Age,Gender,Mobile,Village,Block,District,Payment Status,Registration Date\n";
+
+    seniorList.forEach(p => {
+      csvContent += `"${p.id}","${p.patient_name || ''}","${p.father_husband_name || ''}","${p.age || ''}","${p.gender || ''}","${p.mobile || ''}","${p.village || ''}","${p.block || ''}","${p.district || ''}","${p.payment_status || ''}","${p.created_at ? p.created_at.split('T')[0] : ''}"\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Sinux_Senior_Citizens_Audit_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // === PATIENT ACTIONS ===
@@ -283,6 +319,7 @@ function AdminDashboard() {
   const totalCards = patients.length;
   const approvedCards = patients.filter(p => String(p.admin_status).toUpperCase() === "APPROVED").length;
   const allOnlinePaidPatients = patients.filter(isOnlinePaid);
+  const totalSeniorCitizens = patients.filter(isSeniorCitizen).length;
 
   const pendingApprovals = patients.filter(p => 
     String(p.admin_status).toUpperCase() !== "APPROVED" && 
@@ -336,6 +373,18 @@ function AdminDashboard() {
             <span style={{fontSize: "12px", fontWeight: "bold", color: "#c2410c"}}>⏳ FO नकद सत्यापन पेंडिंग</span>
             <h2 style={{color: "#ea580c", margin: "6px 0"}}>{pendingApprovals.length} Cards</h2>
             <p style={styles.smText}>एडमिन अप्रूवल की प्रतीक्षा में</p>
+          </div>
+
+          {/* 👴 सीनियर सिटीजन लाइव काउंटर (सरकारी ऑडिट हेतु) */}
+          <div style={{...styles.statCard, borderLeft: "5px solid #7c3aed", background: "#f5f3ff"}}>
+            <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+              <span style={{fontSize: "12px", fontWeight: "bold", color: "#6d28d9"}}>👴 Senior Citizens (60+)</span>
+              <button onClick={exportSeniorCitizenReport} style={{background:"#7c3aed", color:"white", border:"none", padding:"4px 8px", borderRadius:"4px", fontSize:"10px", cursor:"pointer", fontWeight:"bold"}}>
+                📥 CSV रिपोर्ट
+              </button>
+            </div>
+            <h2 style={{color: "#5b21b6", margin: "6px 0"}}>{totalSeniorCitizens} लाभार्थी</h2>
+            <p style={styles.smText}>AVYAY / IPSrC सरकारी ग्रांट हेतु सत्यापित डेटा</p>
           </div>
         </div>
 
@@ -863,7 +912,7 @@ function AdminDashboard() {
     </div>
   );
 
-  // 8️⃣ 📸 CAMP GALLERY TAB (ADDED - एडमिन के लिए अपलोड, एडिट व डिलीट)
+  // 8️⃣ 📸 CAMP GALLERY TAB (एडमिन के लिए अपलोड, एडिट व डिलीट)
   const renderGallery = () => (
     <div style={styles.tabContent}>
       <h3 style={styles.sectionTitle}>📸 स्वास्थ्य शिविर गैलरी (Camp Gallery Management)</h3>
@@ -872,7 +921,6 @@ function AdminDashboard() {
       </p>
 
       <div style={{display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: "20px"}}>
-        {/* अपलोड/एडिट फॉर्म */}
         <form onSubmit={handleSaveGallery} style={styles.card}>
           <h4 style={{marginTop: 0, color: "#0f172a", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
             {isEditingGallery ? "✏️ फ़ोटो व विवरण एडिट करें" : "➕ नई कैम्प फ़ोटो जोड़ें"}
@@ -939,7 +987,6 @@ function AdminDashboard() {
           </button>
         </form>
 
-        {/* फ़ोटो लिस्टिंग टेबल */}
         <div style={styles.card}>
           <h4 style={{marginTop: 0, color: "#0f172a", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
             गैलरी में मौजूद फ़ोटोज़ ({galleryList.length})
@@ -984,10 +1031,55 @@ function AdminDashboard() {
             </table>
           </div>
         </div>
-
       </div>
     </div>
   );
+
+  // 9️⃣ 📁 GOV COMPLIANCE & 8-FOLDERS VAULT (ADDED - e-Anudaan, AVYAY, IPSrC)
+  const renderGovVault = () => {
+    const seniorList = patients.filter(isSeniorCitizen);
+
+    const vaultFolders = [
+      { id: "01", name: "01 — Registration Documents", desc: "Section 8 License, PAN, 12A/80G, CSR-1, NGO Darpan Unique ID" },
+      { id: "02", name: "02 — Senior Citizen Activities", desc: `60+ बुजुर्ग कल्याण कार्यक्रम • वर्तमान सत्यापित लाभार्थी: ${seniorList.length}` },
+      { id: "03", name: "03 — Health Camps Summary", desc: `आयोजित कैम्प्स की सूची व फाइल्स • कुल कैम्प: ${campsList.length}` },
+      { id: "04", name: "04 — Beneficiary Register", desc: `मरीज़ पंजीकरण डेटाबेस • कुल पंजीकृत: ${patients.length}` },
+      { id: "05", name: "05 — Doctors & Staff Roster", desc: `संबद्ध डॉक्टर्स, नर्सिंग स्टाफ व फील्ड ऑफिसर्स उपस्थिति` },
+      { id: "06", name: "06 — Medicines & Bills", desc: "दवा खरीद वाउचर, स्टॉक रजिस्टर व वितरण प्रमाण" },
+      { id: "07", name: "07 — Photos & Media Evidence", desc: `जियो-टैग्ड कैम्प तस्वीरें (${galleryList.length}) व समाचार कतरन` },
+      { id: "08", name: "08 — Annual Reports", desc: "वार्षिक गतिविधि एवं अंकेक्षण (Audit) रिपोर्ट" }
+    ];
+
+    return (
+      <div style={styles.tabContent}>
+        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"15px", flexWrap:"wrap", gap:"10px"}}>
+          <div>
+            <h3 style={{...styles.sectionTitle, margin: 0}}>📁 Government Grant & Compliance Vault</h3>
+            <p style={{margin: "4px 0 0", fontSize: "13px", color: "#64748b"}}>
+              e-Anudaan, AVYAY एवं IPSrC सरकारी योजनाओं हेतु 8-फ़ोल्डर मास्टर डॉक्युमेंटेशन सिस्टम
+            </p>
+          </div>
+          <button onClick={exportSeniorCitizenReport} style={{...styles.btnPrimaryFull, width:"auto", background:"#7c3aed"}}>
+            📥 Export 60+ Senior Citizen CSV
+          </button>
+        </div>
+
+        <div style={styles.statsGrid}>
+          {vaultFolders.map(f => (
+            <div key={f.id} style={{...styles.card, borderLeft:"4px solid #7c3aed"}}>
+              <h4 style={{margin: "0 0 6px 0", color:"#5b21b6", fontSize:"15px"}}>📂 {f.name}</h4>
+              <p style={{margin:0, fontSize:"12px", color:"#64748b", lineHeight:"1.5"}}>{f.desc}</p>
+              <div style={{marginTop:"12px", display:"flex", gap:"8px"}}>
+                <span style={{background:"#f5f3ff", color:"#6d28d9", padding:"3px 8px", borderRadius:"4px", fontSize:"11px", fontWeight:"bold"}}>
+                  Ready for Audit
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={styles.page}>
@@ -1017,6 +1109,9 @@ function AdminDashboard() {
         <button style={activeTab === "gallery" ? styles.navBtnActive : styles.navBtn} onClick={() => setActiveTab("gallery")}>
           📸 Camp Gallery ({galleryList.length})
         </button>
+        <button style={activeTab === "gov_vault" ? styles.navBtnActive : styles.navBtn} onClick={() => setActiveTab("gov_vault")}>
+          📁 Gov Vault (8-Folders)
+        </button>
         <button style={activeTab === "payments" ? styles.navBtnActive : styles.navBtn} onClick={() => setActiveTab("payments")}>💰 Payments</button>
         <button style={activeTab === "master" ? styles.navBtnActive : styles.navBtn} onClick={() => setActiveTab("master")}>🗂️ Master DB</button>
       </div>
@@ -1030,6 +1125,7 @@ function AdminDashboard() {
             {activeTab === "approvals" && renderApprovals()}
             {activeTab === "team" && renderTeam()}
             {activeTab === "gallery" && renderGallery()}
+            {activeTab === "gov_vault" && renderGovVault()}
             {activeTab === "payments" && renderPayments()}
             {activeTab === "master" && renderMaster()}
           </>
