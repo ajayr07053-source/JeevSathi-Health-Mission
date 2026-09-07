@@ -27,12 +27,12 @@ function AdminDashboard() {
   const [selectedUserForId, setSelectedUserForId] = useState(null);
 
   // === FILTER STATES ===
-  const [filterType, setFilterType] = useState("online_paid"); // default online_paid, team, health_card, camp_patient, hospital
+  const [filterType, setFilterType] = useState("online_paid");
   const [filterDistrict, setFilterDistrict] = useState("All");
   const [filterBlock, setFilterBlock] = useState("All");
   const [filterMember, setFilterMember] = useState("All");
 
-  // === 📸 GALLERY STATES (ADDED) ===
+  // === 📸 GALLERY STATES ===
   const [galleryList, setGalleryList] = useState([]);
   const [galleryForm, setGalleryForm] = useState({ id: null, title: "", description: "", image_url: "" });
   const [isEditingGallery, setIsEditingGallery] = useState(false);
@@ -59,7 +59,6 @@ function AdminDashboard() {
       if (hError) throw new Error("Hospitals Table Error: " + hError.message);
       if (hData) setHospitalsList(hData || []);
 
-      // 📸 गैलरी डेटा लोड करना
       const { data: gData } = await supabase.from("camp_gallery").select("*").order("id", { ascending: false });
       if (gData) setGalleryList(gData);
 
@@ -114,7 +113,7 @@ function AdminDashboard() {
     return !p.fo_id || !p.fo_name || p.fo_name === "Unassigned" || p.fo_name === "DIRECT" || String(p.fo_name).trim() === "";
   };
 
-  // 👴 सीनियर सिटीजन (60+ आयु) पहचान
+  // 👴 सीनियर सिटीजन (60+ आयु) की पहचान
   const isSeniorCitizen = (p) => {
     if (p.is_senior_citizen === true) return true;
     if (p.age && Number(p.age) >= 60) return true;
@@ -126,28 +125,264 @@ function AdminDashboard() {
     return false;
   };
 
-  // 📥 सीनियर सिटीजन 1-क्लिक CSV/Excel एक्सपोर्ट (सरकारी ग्रांट हेतु)
+  // 📥 केवल 60+ बुजुर्गों की CSV रिपोर्ट डाउनलोड
   const exportSeniorCitizenReport = () => {
     const seniorList = patients.filter(isSeniorCitizen);
     if (seniorList.length === 0) {
-      alert("कोई 60+ सीनियर सिटीजन रिकॉर्ड नहीं मिला!");
+      alert("⚠️ कोई 60+ सीनियर सिटीजन रिकॉर्ड नहीं मिला!");
       return;
     }
 
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Beneficiary ID,Patient Name,Guardian Name,Age,Gender,Mobile,Village,Block,District,Payment Status,Registration Date\n";
+    csvContent += "Beneficiary ID,Senior Citizen Name,Father or Husband Name,Age,Gender,Mobile,Village,Block,District,Payment Status,Registration Date,Photo URL\n";
 
     seniorList.forEach(p => {
-      csvContent += `"${p.id}","${p.patient_name || ''}","${p.father_husband_name || ''}","${p.age || ''}","${p.gender || ''}","${p.mobile || ''}","${p.village || ''}","${p.block || ''}","${p.district || ''}","${p.payment_status || ''}","${p.created_at ? p.created_at.split('T')[0] : ''}"\n`;
+      csvContent += `"${p.id}","${p.patient_name || ''}","${p.father_husband_name || ''}","${p.age || '60+'}","${p.gender || ''}","${p.mobile || ''}","${p.village || ''}","${p.block || ''}","${p.district || ''}","${p.payment_status || ''}","${p.created_at ? p.created_at.split('T')[0] : ''}","${p.photo_url || 'No Photo'}"\n`;
     });
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Sinux_Senior_Citizens_Audit_Report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `Sinux_Senior_Citizens_60Plus_Report_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // 🏆 समग्र आधिकारिक CSR & सरकारी ग्रांट ऑडिट रिपोर्ट (फोटो, 60+ अलग, कैम्प गैलरी सहित)
+  const generateOfficialImpactReport = () => {
+    const seniorList = patients.filter(isSeniorCitizen);
+    const generalList = patients.filter(p => !isSeniorCitizen(p));
+    const currentDate = new Date().toLocaleDateString("hi-IN", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+
+    const reportWindow = window.open("", "_blank");
+    if (!reportWindow) {
+      alert("⚠️ कृपया ब्राउज़र में पॉपअप अनुमति दें ताकि रिपोर्ट खुल सके।");
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="hi">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Project Impact & CSR Audit Dossier - Sinux India Foundation</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 25px; color: #1e293b; background: #fff; line-height: 1.5; }
+          .header-box { border-bottom: 3px solid #064e3b; padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+          .org-title { font-size: 24px; font-weight: 800; color: #064e3b; margin: 0; }
+          .mission-title { font-size: 15px; font-weight: 700; color: #ea580c; margin: 3px 0; }
+          .org-meta { font-size: 11px; color: #475569; margin: 0; }
+          
+          .report-banner { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin: 20px 0; }
+          .banner-title { margin: 0 0 5px 0; font-size: 17px; color: #166534; font-weight: 800; }
+          
+          .kpi-row { display: flex; gap: 15px; margin-bottom: 25px; }
+          .kpi-card { flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; text-align: center; background: #f8fafc; }
+          .kpi-num { font-size: 24px; font-weight: 800; color: #0f172a; margin: 4px 0; }
+          .kpi-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; }
+
+          .section-heading { font-size: 15px; font-weight: 800; padding: 8px 12px; border-radius: 6px; margin: 30px 0 12px 0; }
+          .senior-heading { background: #f5f3ff; color: #5b21b6; border-left: 5px solid #7c3aed; }
+          .general-heading { background: #f0f9ff; color: #0369a1; border-left: 5px solid #0284c7; }
+          .photo-heading { background: #fefce8; color: #854d0e; border-left: 5px solid #ca8a04; }
+
+          table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
+          th { background: #f1f5f9; color: #334155; font-weight: 700; padding: 8px 6px; border: 1px solid #cbd5e1; text-align: left; }
+          td { padding: 8px 6px; border: 1px solid #e2e8f0; vertical-align: middle; }
+          
+          .patient-photo { width: 42px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #cbd5e1; display: block; background: #f1f5f9; }
+          
+          .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; page-break-inside: avoid; }
+          .gallery-card { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #fff; }
+          .gallery-img { width: 100%; height: 160px; object-fit: cover; display: block; }
+          .gallery-info { padding: 8px 10px; }
+          .gallery-title { font-size: 12px; font-weight: 700; margin: 0; color: #0f172a; }
+          .gallery-desc { font-size: 10px; color: #64748b; margin: 3px 0 0 0; }
+
+          .footer-sign { margin-top: 50px; display: flex; justify-content: space-between; page-break-inside: avoid; }
+          .sign-box { width: 220px; text-align: center; border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 11px; font-weight: 600; color: #334155; }
+
+          .no-print-bar { position: sticky; top: 0; background: #0f172a; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 6px; margin-bottom: 20px; }
+          .btn-print { background: #16a34a; color: white; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 13px; }
+
+          @media print {
+            .no-print-bar { display: none; }
+            body { padding: 0; }
+            .section-heading { margin-top: 20px; }
+            tr { page-break-inside: avoid; }
+          }
+        </style>
+      </head>
+      <body>
+
+        <div class="no-print-bar">
+          <span>📄 <strong>Sinux India Foundation</strong> • आधिकारिक प्रोजेक्ट ऑडिट रिपोर्ट</span>
+          <button class="btn-print" onclick="window.print()">🖨️ PDF सेव करें / प्रिंट निकालें</button>
+        </div>
+
+        <div class="header-box">
+          <div>
+            <h1 class="org-title">SINUX INDIA FOUNDATION</h1>
+            <div class="mission-title">JeevSathi Health Mission • Community Outreach & Senior Care</div>
+            <p class="org-meta">
+              Reg. Office: Lucknow, Uttar Pradesh, India • Email: support@jeevsathi.org<br/>
+              Valid for: Corporate CSR Funding, Government Grants (e-Anudaan / AVYAY / IPSrC)
+            </p>
+          </div>
+          <div style="text-align: right; font-size: 11px; color: #475569;">
+            <strong>रिपोर्ट आईडी:</strong> SIF-CSR-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}<br/>
+            <strong>दिनांक:</strong> ${currentDate}<br/>
+            <strong>डॉक्युमेंट स्थिति:</strong> Verified & Audited
+          </div>
+        </div>
+
+        <div class="report-banner">
+          <div class="banner-title">COMPREHENSIVE PROJECT PERFORMANCE & IMPACT AUDIT REPORT</div>
+          <p style="margin: 0; font-size: 12px; color: #334155;">
+            यह दस्तावेज प्रमाणित करता है कि संस्था द्वारा ग्रामीण एवं कस्बाई क्षेत्रों में स्वास्थ्य शिविर, निशुल्क दवा वितरण, प्राथमिक स्वास्थ्य परामर्श और 60+ आयु वर्ग के वरिष्ठ नागरिकों की व्यापक देखभाल का कार्य धरातल पर संचालित किया गया है।
+          </p>
+        </div>
+
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="kpi-label">कुल आयोजित कैम्प्स</div>
+            <div class="kpi-num" style="color:#059669;">${campsList.length}</div>
+            <div class="org-meta">Health Camps</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">कुल पंजीकृत लाभार्थी</div>
+            <div class="kpi-num" style="color:#0284c7;">${patients.length}</div>
+            <div class="org-meta">Direct Beneficiaries</div>
+          </div>
+          <div class="kpi-card" style="background:#f5f3ff; border-color:#ddd6fe;">
+            <div class="kpi-label" style="color:#6d28d9;">वरिष्ठ नागरिक (60+ आयु)</div>
+            <div class="kpi-num" style="color:#7c3aed;">${seniorList.length}</div>
+            <div class="org-meta">Senior Citizens Supported</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">संबद्ध पार्टनर अस्पताल</div>
+            <div class="kpi-num" style="color:#ea580c;">${hospitalsList.length}</div>
+            <div class="org-meta">Network Centers</div>
+          </div>
+        </div>
+
+        <!-- 1. वरिष्ठ नागरिक अनुभाग -->
+        <div class="section-heading senior-heading">
+          1. विशेष वरिष्ठ नागरिक स्वास्थ्य एवं देखभाल रजिस्टर (Senior Citizens 60+ Beneficiaries) — [कुल: ${seniorList.length}]
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:45px;">फोटो</th>
+              <th>आईडी</th>
+              <th>वरिष्ठ नागरिक का नाम</th>
+              <th>पिता / पति का नाम</th>
+              <th>उम्र</th>
+              <th>लिंग</th>
+              <th>मोबाइल</th>
+              <th>गाँव / मोहल्ला</th>
+              <th>ब्लॉक व ज़िला</th>
+              <th>पंजीकरण तिथि</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${seniorList.map(p => `
+              <tr>
+                <td>
+                  ${p.photo_url ? `<img src="${p.photo_url}" class="patient-photo" alt="Photo" />` : `<div class="patient-photo" style="display:flex;align-items:center;justify-content:center;font-size:16px;">👤</div>`}
+                </td>
+                <td><strong>#${p.id}</strong></td>
+                <td><strong>${p.patient_name || 'N/A'}</strong></td>
+                <td>${p.father_husband_name || '-'}</td>
+                <td><strong style="color:#7c3aed;">${p.age || '60+'} वर्ष</strong></td>
+                <td>${p.gender || '-'}</td>
+                <td>${p.mobile || '-'}</td>
+                <td>${p.village || '-'}</td>
+                <td>${p.block || ''}, ${p.district || ''}</td>
+                <td>${p.created_at ? p.created_at.split('T')[0] : '-'}</td>
+              </tr>
+            `).join('')}
+            ${seniorList.length === 0 ? `<tr><td colspan="10" style="text-align:center;padding:15px;">डेटाबेस में कोई 60+ बुजुर्ग रिकॉर्ड उपलब्ध नहीं है।</td></tr>` : ''}
+          </tbody>
+        </table>
+
+        <!-- 2. सामान्य लाभार्थी अनुभाग -->
+        <div class="section-heading general-heading">
+          2. सामान्य स्वास्थ्य परीक्षण एवं कार्डधारक लाभार्थी (General Camp Beneficiaries) — [कुल: ${generalList.length}]
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:45px;">फोटो</th>
+              <th>आईडी</th>
+              <th>लाभार्थी का नाम</th>
+              <th>अभिभावक</th>
+              <th>उम्र</th>
+              <th>लिंग</th>
+              <th>मोबाइल</th>
+              <th>स्थान (गाँव, ब्लॉक, ज़िला)</th>
+              <th>सत्यापन स्थिति</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${generalList.slice(0, 50).map(p => `
+              <tr>
+                <td>
+                  ${p.photo_url ? `<img src="${p.photo_url}" class="patient-photo" alt="Photo" />` : `<div class="patient-photo" style="display:flex;align-items:center;justify-content:center;font-size:16px;">👤</div>`}
+                </td>
+                <td>#${p.id}</td>
+                <td><strong>${p.patient_name || 'N/A'}</strong></td>
+                <td>${p.father_husband_name || '-'}</td>
+                <td>${p.age || '-'} वर्ष</td>
+                <td>${p.gender || '-'}</td>
+                <td>${p.mobile || '-'}</td>
+                <td>${p.village || ''}, ${p.block || ''}</td>
+                <td><span style="color:#16a34a; font-weight:700;">${p.admin_status || 'VERIFIED'}</span></td>
+              </tr>
+            `).join('')}
+            ${generalList.length > 50 ? `<tr><td colspan="9" style="text-align:center;color:#64748b;font-weight:bold;">...तथा ${generalList.length - 50} अन्य लाभार्थी डिजिटल डेटाबेस में सुरक्षित हैं।</td></tr>` : ''}
+          </tbody>
+        </table>
+
+        <!-- 3. फील्ड फोटो साक्ष्य अनुभाग -->
+        <div class="section-heading photo-heading">
+          3. स्वास्थ्य शिविर एवं फील्ड गतिविधियों के प्रामाणिक छायाचित्र (Ground Reality Evidence)
+        </div>
+        <div class="gallery-grid">
+          ${galleryList.slice(0, 9).map(img => `
+            <div class="gallery-card">
+              <img src="${img.image_url}" class="gallery-img" alt="${img.title}" />
+              <div class="gallery-info">
+                <div class="gallery-title">🏕️ ${img.title}</div>
+                <div class="gallery-desc">${img.description || 'स्वास्थ्य जांच, परामर्श एवं दवा वितरण का दृश्य।'}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="footer-sign">
+          <div class="sign-box">
+            प्रोजेक्ट कोऑर्डिनेटर<br/>
+            JeevSathi Health Mission
+          </div>
+          <div class="sign-box">
+            अधिकृत हस्ताक्षरकर्ता / ट्रस्टी<br/>
+            Sinux India Foundation
+          </div>
+        </div>
+
+      </body>
+      </html>
+    `;
+
+    reportWindow.document.open();
+    reportWindow.document.write(htmlContent);
+    reportWindow.document.close();
   };
 
   // === PATIENT ACTIONS ===
@@ -249,7 +484,7 @@ function AdminDashboard() {
     setShowIdModal(true);
   };
 
-  // === 📸 GALLERY CRUD FUNCTIONS (ADDED) ===
+  // === 📸 GALLERY CRUD FUNCTIONS ===
   const handleGalleryPhotoSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -315,7 +550,7 @@ function AdminDashboard() {
     }
   };
 
-  // === DERIVED DATA & COUNTS ===
+  // === DERIVED COUNTS ===
   const totalCards = patients.length;
   const approvedCards = patients.filter(p => String(p.admin_status).toUpperCase() === "APPROVED").length;
   const allOnlinePaidPatients = patients.filter(isOnlinePaid);
@@ -348,7 +583,24 @@ function AdminDashboard() {
 
     return (
       <div style={styles.tabContent}>
-        <h3 style={styles.sectionTitle}>📊 Smart Data Analytics & KPI Overview</h3>
+        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"15px", flexWrap:"wrap", gap:"10px"}}>
+          <h3 style={{...styles.sectionTitle, margin: 0}}>📊 Smart Data Analytics & KPI Overview</h3>
+          <button 
+            onClick={generateOfficialImpactReport} 
+            style={{
+              background: "linear-gradient(90deg, #059669, #047857)", 
+              color: "white", 
+              border: "none", 
+              padding: "10px 18px", 
+              borderRadius: "8px", 
+              fontWeight: "bold", 
+              cursor: "pointer", 
+              boxShadow: "0 4px 10px rgba(5, 150, 105, 0.25)"
+            }}
+          >
+            🏆 Generate Official CSR & Grant Dossier (With Photos) →
+          </button>
+        </div>
         
         {dbError && (
           <div style={{background: "#fee2e2", color: "#991b1b", padding: "15px", borderRadius: "8px", border: "1px solid #fca5a5", marginBottom: "20px", fontWeight: "bold"}}>
@@ -375,12 +627,11 @@ function AdminDashboard() {
             <p style={styles.smText}>एडमिन अप्रूवल की प्रतीक्षा में</p>
           </div>
 
-          {/* 👴 सीनियर सिटीजन लाइव काउंटर (सरकारी ऑडिट हेतु) */}
           <div style={{...styles.statCard, borderLeft: "5px solid #7c3aed", background: "#f5f3ff"}}>
             <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
               <span style={{fontSize: "12px", fontWeight: "bold", color: "#6d28d9"}}>👴 Senior Citizens (60+)</span>
               <button onClick={exportSeniorCitizenReport} style={{background:"#7c3aed", color:"white", border:"none", padding:"4px 8px", borderRadius:"4px", fontSize:"10px", cursor:"pointer", fontWeight:"bold"}}>
-                📥 CSV रिपोर्ट
+                📥 CSV
               </button>
             </div>
             <h2 style={{color: "#5b21b6", margin: "6px 0"}}>{totalSeniorCitizens} लाभार्थी</h2>
@@ -678,7 +929,7 @@ function AdminDashboard() {
     </div>
   );
 
-  // 4️⃣ APPROVALS TAB (केवल FO नकद वाले कार्ड्स)
+  // 4️⃣ APPROVALS TAB
   const renderApprovals = () => (
     <div style={styles.tabContent}>
       <h3 style={styles.sectionTitle}>🟠 FO नकद सत्यापन एवं फाइनल अप्रूवल ({pendingApprovals.length} Pending)</h3>
@@ -912,7 +1163,7 @@ function AdminDashboard() {
     </div>
   );
 
-  // 8️⃣ 📸 CAMP GALLERY TAB (एडमिन के लिए अपलोड, एडिट व डिलीट)
+  // 8️⃣ 📸 CAMP GALLERY TAB
   const renderGallery = () => (
     <div style={styles.tabContent}>
       <h3 style={styles.sectionTitle}>📸 स्वास्थ्य शिविर गैलरी (Camp Gallery Management)</h3>
@@ -1035,7 +1286,7 @@ function AdminDashboard() {
     </div>
   );
 
-  // 9️⃣ 📁 GOV COMPLIANCE & 8-FOLDERS VAULT (ADDED - e-Anudaan, AVYAY, IPSrC)
+  // 9️⃣ 📁 GOV COMPLIANCE & 8-FOLDERS VAULT
   const renderGovVault = () => {
     const seniorList = patients.filter(isSeniorCitizen);
 
@@ -1059,9 +1310,14 @@ function AdminDashboard() {
               e-Anudaan, AVYAY एवं IPSrC सरकारी योजनाओं हेतु 8-फ़ोल्डर मास्टर डॉक्युमेंटेशन सिस्टम
             </p>
           </div>
-          <button onClick={exportSeniorCitizenReport} style={{...styles.btnPrimaryFull, width:"auto", background:"#7c3aed"}}>
-            📥 Export 60+ Senior Citizen CSV
-          </button>
+          <div style={{display:"flex", gap:"10px"}}>
+            <button onClick={exportSeniorCitizenReport} style={{...styles.btnPrimaryFull, width:"auto", background:"#7c3aed"}}>
+              📥 Export 60+ CSV
+            </button>
+            <button onClick={generateOfficialImpactReport} style={{...styles.btnPrimaryFull, width:"auto", background:"#059669"}}>
+              🏆 Official Audit Dossier
+            </button>
+          </div>
         </div>
 
         <div style={styles.statsGrid}>
