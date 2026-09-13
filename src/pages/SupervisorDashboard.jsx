@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
@@ -106,7 +106,7 @@ function SupervisorDashboard() {
     }
   };
 
-  // 🔒 सुपरवाइज़र के क्षेत्र का डेटा फेच करना (सुरक्षित फ़िल्टरिंग)
+  // 🔒 सुपरवाइज़र के क्षेत्र का डेटा फेच करना (सभी अस्पताल दिखाने की सुविधा के साथ)
   const fetchScopedData = async () => {
     setLoading(true);
 
@@ -146,8 +146,8 @@ function SupervisorDashboard() {
             const pendingCount = foCards.filter(p => p.payment_status !== "RECEIVED").length;
             return {
               ...fo, dailyCards, monthlyCards,
-              totalPaid: paidCards * 20,
-              totalPendingPayment: pendingCount * 20
+              totalPaid: paidCards * 50, // 🚀 FO Payout ₹50 per card
+              totalPendingPayment: pendingCount * 50
             };
           });
           setFoPerformance(stats);
@@ -157,14 +157,12 @@ function SupervisorDashboard() {
       }
 
       // 3. Camps, Hospitals, Stores, Schools, Diagnostics
-      // 🚀 ID के आधार पर ऑर्डर करें ताकि created_at न होने पर भी क्रैश न हो
       let cQ = supabase.from("camps").select("*").order("id", { ascending: false });
       let hQ = supabase.from("hospitals").select("*").order("id", { ascending: false });
       let sQ = supabase.from("medical_stores").select("*").order("id", { ascending: false });
       let schQ = supabase.from("schools").select("*").order("id", { ascending: false });
       let dQ = supabase.from("diagnostic_centers").select("*").order("id", { ascending: false });
 
-      // अगर सुपरवाइज़र का ब्लॉक सेट है तो प्राथमिकता ब्लॉक को दें, लेकिन अगर ब्लॉक में डेटा 0 हो तो ज़िला लेवल पर चेक करें
       if (supervisorDistrict) {
         hQ = hQ.ilike("district", `%${supervisorDistrict.trim()}%`);
         sQ = sQ.ilike("district", `%${supervisorDistrict.trim()}%`);
@@ -179,45 +177,11 @@ function SupervisorDashboard() {
 
       if (cRes.data) setCampsList(cRes.data);
       
-      // अस्पतालों की लिस्ट फ़िल्टरिंग (सुपरवाइज़र ब्लॉक को प्राथमिकता, अन्यथा ज़िला)
-      if (hRes.data) {
-        if (supervisorBlock) {
-          const matchedByBlock = hRes.data.filter(h => 
-            String(h.block || "").trim().toLowerCase() === supervisorBlock.trim().toLowerCase()
-          );
-          // अगर ब्लॉक में अस्पताल हैं तो वही दिखाएँ, नहीं तो ज़िले के सारे अस्पताल दिखाएँ
-          setHospitalsList(matchedByBlock.length > 0 ? matchedByBlock : hRes.data);
-        } else {
-          setHospitalsList(hRes.data);
-        }
-      }
-
-      if (sRes.data) {
-        if (supervisorBlock) {
-          const matched = sRes.data.filter(s => String(s.block || "").trim().toLowerCase() === supervisorBlock.trim().toLowerCase());
-          setMedicalStoresList(matched.length > 0 ? matched : sRes.data);
-        } else {
-          setMedicalStoresList(sRes.data);
-        }
-      }
-
-      if (schRes.data) {
-        if (supervisorBlock) {
-          const matched = schRes.data.filter(s => String(s.block || "").trim().toLowerCase() === supervisorBlock.trim().toLowerCase());
-          setSchoolsList(matched.length > 0 ? matched : schRes.data);
-        } else {
-          setSchoolsList(schRes.data);
-        }
-      }
-
-      if (dRes.data) {
-        if (supervisorBlock) {
-          const matched = dRes.data.filter(d => String(d.block || "").trim().toLowerCase() === supervisorBlock.trim().toLowerCase());
-          setDiagnosticsList(matched.length > 0 ? matched : dRes.data);
-        } else {
-          setDiagnosticsList(dRes.data);
-        }
-      }
+      // 🚀 सभी अस्पताल दिखाना (District level fallback ताकि कोई अस्पताल न छुटे)
+      if (hRes.data) setHospitalsList(hRes.data);
+      if (sRes.data) setMedicalStoresList(sRes.data);
+      if (schRes.data) setSchoolsList(schRes.data);
+      if (dRes.data) setDiagnosticsList(dRes.data);
 
     } catch (err) {
       console.error("Scoped fetch error:", err);
@@ -952,7 +916,7 @@ function SupervisorDashboard() {
             <h3 style={styles.sectionTitle}>👨‍💼 ब्लॉक फील्ड ऑफिसर्स ({supervisorBlock})</h3>
             <table style={styles.table}>
               <thead>
-                <tr style={styles.trHead}><th>FO Name</th><th>Daily Cards</th><th>Monthly Cards</th><th>Payout Total</th></tr>
+                <tr style={styles.trHead}><th>FO Name</th><th>Daily Cards</th><th>Monthly Cards</th><th>Payout Total (₹50/Card)</th></tr>
               </thead>
               <tbody>
                 {foPerformance.map(fo => (
