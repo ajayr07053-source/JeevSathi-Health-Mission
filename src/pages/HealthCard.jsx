@@ -110,7 +110,7 @@ function HealthCard() {
                 {patient.photo_url ? (
                   <img src={patient.photo_url} alt="Patient" style={styles.patientPhoto} />
                 ) : (
-                  <span style={{fontSize: "35px", opacity: 0.5}}>👤</span>
+                  <span style={{fontSize: "33px", opacity: 0.5}}>👤</span>
                 )}
               </div>
               <div style={styles.idBadge}>
