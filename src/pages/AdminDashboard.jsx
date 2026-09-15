@@ -37,6 +37,7 @@ function AdminDashboard() {
   const [filterDistrict, setFilterDistrict] = useState("All");
   const [filterBlock, setFilterBlock] = useState("All");
   const [filterMember, setFilterMember] = useState("All");
+  const [selectedCampFilter, setSelectedCampFilter] = useState("All"); // 🏕️ सिलेक्टेड कैंप स्टेट
 
   // === 📸 GALLERY STATES ===
   const [galleryList, setGalleryList] = useState([]);
@@ -68,7 +69,6 @@ function AdminDashboard() {
       const { data: gData } = await supabase.from("camp_gallery").select("*").order("id", { ascending: false });
       if (gData) setGalleryList(gData);
 
-      // 📂 संस्था के लीगल दस्तावेज़ लोड करना
       const { data: dData } = await supabase.from("org_documents").select("*");
       if (dData) setOrgDocsList(dData);
 
@@ -115,7 +115,6 @@ function AdminDashboard() {
   }, [filterDistrict, districtsList]);
 
   // === HELPER FUNCTIONS ===
-  // जांच: क्या यह रिकॉर्ड कैम्प ओपीडी का है (जिसका कार्ड नहीं बनना है)
   const isCampPatient = (p) => {
     return (
       p.payment_status === "FREE_OPD" ||
@@ -145,7 +144,6 @@ function AdminDashboard() {
     return false;
   };
 
-  // 📂 लीगल डॉक्यूमेंट अपलोड हैंडलर
   const handleDocFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -187,7 +185,6 @@ function AdminDashboard() {
     }
   };
 
-  // 📥 केवल 60+ बुजुर्गों की CSV रिपोर्ट डाउनलोड
   const exportSeniorCitizenReport = () => {
     const seniorList = patients.filter(isSeniorCitizen);
     if (seniorList.length === 0) {
@@ -211,7 +208,6 @@ function AdminDashboard() {
     document.body.removeChild(link);
   };
 
-  // 🏆 समग्र आधिकारिक CSR & सरकारी ग्रांट ऑडिट रिपोर्ट
   const generateOfficialImpactReport = () => {
     const seniorList = patients.filter(isSeniorCitizen);
     const generalList = patients.filter(p => !isSeniorCitizen(p));
@@ -239,39 +235,30 @@ function AdminDashboard() {
           .org-title { font-size: 24px; font-weight: 800; color: #064e3b; margin: 0; }
           .mission-title { font-size: 15px; font-weight: 700; color: #ea580c; margin: 3px 0; }
           .org-meta { font-size: 11px; color: #475569; margin: 0; }
-          
           .report-banner { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin: 20px 0; }
           .banner-title { margin: 0 0 5px 0; font-size: 17px; color: #166534; font-weight: 800; }
-          
           .kpi-row { display: flex; gap: 15px; margin-bottom: 25px; }
           .kpi-card { flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; text-align: center; background: #f8fafc; }
           .kpi-num { font-size: 24px; font-weight: 800; color: #0f172a; margin: 4px 0; }
           .kpi-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; }
-
           .section-heading { font-size: 15px; font-weight: 800; padding: 8px 12px; border-radius: 6px; margin: 30px 0 12px 0; }
           .senior-heading { background: #f5f3ff; color: #5b21b6; border-left: 5px solid #7c3aed; }
           .general-heading { background: #f0f9ff; color: #0369a1; border-left: 5px solid #0284c7; }
           .photo-heading { background: #fefce8; color: #854d0e; border-left: 5px solid #ca8a04; }
-
           table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 20px; }
           th { background: #f1f5f9; color: #334155; font-weight: 700; padding: 8px 6px; border: 1px solid #cbd5e1; text-align: left; }
           td { padding: 8px 6px; border: 1px solid #e2e8f0; vertical-align: middle; }
-          
           .patient-photo { width: 42px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #cbd5e1; display: block; background: #f1f5f9; }
-          
           .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; page-break-inside: avoid; }
           .gallery-card { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #fff; }
           .gallery-img { width: 100%; height: 160px; object-fit: cover; display: block; }
           .gallery-info { padding: 8px 10px; }
           .gallery-title { font-size: 12px; font-weight: 700; margin: 0; color: #0f172a; }
           .gallery-desc { font-size: 10px; color: #64748b; margin: 3px 0 0 0; }
-
           .footer-sign { margin-top: 50px; display: flex; justify-content: space-between; page-break-inside: avoid; }
           .sign-box { width: 220px; text-align: center; border-top: 1px solid #94a3b8; padding-top: 6px; font-size: 11px; font-weight: 600; color: #334155; }
-
           .no-print-bar { position: sticky; top: 0; background: #0f172a; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-radius: 6px; margin-bottom: 20px; }
           .btn-print { background: #16a34a; color: white; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 13px; }
-
           @media print {
             .no-print-bar { display: none; }
             body { padding: 0; }
@@ -281,12 +268,10 @@ function AdminDashboard() {
         </style>
       </head>
       <body>
-
         <div class="no-print-bar">
           <span>📄 <strong>Sinux India Foundation</strong> • आधिकारिक प्रोजेक्ट ऑडिट रिपोर्ट</span>
           <button class="btn-print" onclick="window.print()">🖨️ PDF सेव करें / प्रिंट निकालें</button>
         </div>
-
         <div class="header-box">
           <div>
             <h1 class="org-title">SINUX INDIA FOUNDATION</h1>
@@ -302,14 +287,12 @@ function AdminDashboard() {
             <strong>डॉक्युमेंट स्थिति:</strong> Verified & Audited
           </div>
         </div>
-
         <div class="report-banner">
           <div class="banner-title">COMPREHENSIVE PROJECT PERFORMANCE & IMPACT AUDIT REPORT</div>
           <p style="margin: 0; font-size: 12px; color: #334155;">
             यह दस्तावेज प्रमाणित करता है कि संस्था द्वारा ग्रामीण एवं कस्बाई क्षेत्रों में स्वास्थ्य शिविर, निशुल्क दवा वितरण, प्राथमिक स्वास्थ्य परामर्श और 60+ आयु वर्ग के वरिष्ठ नागरिकों की व्यापक देखभाल का कार्य धरातल पर संचालित किया गया है।
           </p>
         </div>
-
         <div class="kpi-row">
           <div class="kpi-card">
             <div class="kpi-label">कुल आयोजित कैम्प्स</div>
@@ -332,32 +315,19 @@ function AdminDashboard() {
             <div class="org-meta">Network Centers</div>
           </div>
         </div>
-
-        <!-- 1. वरिष्ठ नागरिक अनुभाग -->
         <div class="section-heading senior-heading">
           1. विशेष वरिष्ठ नागरिक स्वास्थ्य एवं देखभाल रजिस्टर (Senior Citizens 60+ Beneficiaries) — [कुल: ${seniorList.length}]
         </div>
         <table>
           <thead>
             <tr>
-              <th style="width:45px;">फोटो</th>
-              <th>आईडी</th>
-              <th>वरिष्ठ नागरिक का नाम</th>
-              <th>पिता / पति का नाम</th>
-              <th>उम्र</th>
-              <th>लिंग</th>
-              <th>मोबाइल</th>
-              <th>गाँव / मोहल्ला</th>
-              <th>ब्लॉक व ज़िला</th>
-              <th>पंजीकरण तिथि</th>
+              <th style="width:45px;">फोटो</th><th>आईडी</th><th>वरिष्ठ नागरिक का नाम</th><th>पिता / पति का नाम</th><th>उम्र</th><th>लिंग</th><th>मोबाइल</th><th>गाँव / मोहल्ला</th><th>ब्लॉक व ज़िला</th><th>पंजीकरण तिथि</th>
             </tr>
           </thead>
           <tbody>
             ${seniorList.map(p => `
               <tr>
-                <td>
-                  ${p.photo_url ? `<img src="${p.photo_url}" class="patient-photo" alt="Photo" />` : `<div class="patient-photo" style="display:flex;align-items:center;justify-content:center;font-size:16px;">👤</div>`}
-                </td>
+                <td>${p.photo_url ? `<img src="${p.photo_url}" class="patient-photo" alt="Photo" />` : `<div class="patient-photo" style="display:flex;align-items:center;justify-content:center;font-size:16px;">👤</div>`}</td>
                 <td><strong>#${p.id}</strong></td>
                 <td><strong>${p.patient_name || 'N/A'}</strong></td>
                 <td>${p.father_husband_name || '-'}</td>
@@ -372,31 +342,19 @@ function AdminDashboard() {
             ${seniorList.length === 0 ? `<tr><td colspan="10" style="text-align:center;padding:15px;">डेटाबेस में कोई 60+ बुजुर्ग रिकॉर्ड उपलब्ध नहीं है।</td></tr>` : ''}
           </tbody>
         </table>
-
-        <!-- 2. सामान्य लाभार्थी अनुभाग -->
         <div class="section-heading general-heading">
           2. सामान्य स्वास्थ्य परीक्षण एवं कार्डधारक लाभार्थी (General Camp Beneficiaries) — [कुल: ${generalList.length}]
         </div>
         <table>
           <thead>
             <tr>
-              <th style="width:45px;">फोटो</th>
-              <th>आईडी</th>
-              <th>लाभार्थी का नाम</th>
-              <th>अभिभावक</th>
-              <th>उम्र</th>
-              <th>लिंग</th>
-              <th>मोबाइल</th>
-              <th>स्थान (गाँव, ब्लॉक, ज़िला)</th>
-              <th>सत्यापन स्थिति</th>
+              <th style="width:45px;">फोटो</th><th>आईडी</th><th>लाभार्थी का नाम</th><th>अभिभावक</th><th>उम्र</th><th>लिंग</th><th>मोबाइल</th><th>स्थान (गाँव, ब्लॉक, ज़िला)</th><th>सत्यापन स्थिति</th>
             </tr>
           </thead>
           <tbody>
             ${generalList.slice(0, 50).map(p => `
               <tr>
-                <td>
-                  ${p.photo_url ? `<img src="${p.photo_url}" class="patient-photo" alt="Photo" />` : `<div class="patient-photo" style="display:flex;align-items:center;justify-content:center;font-size:16px;">👤</div>`}
-                </td>
+                <td>${p.photo_url ? `<img src="${p.photo_url}" class="patient-photo" alt="Photo" />` : `<div class="patient-photo" style="display:flex;align-items:center;justify-content:center;font-size:16px;">👤</div>`}</td>
                 <td>#${p.id}</td>
                 <td><strong>${p.patient_name || 'N/A'}</strong></td>
                 <td>${p.father_husband_name || '-'}</td>
@@ -410,8 +368,6 @@ function AdminDashboard() {
             ${generalList.length > 50 ? `<tr><td colspan="9" style="text-align:center;color:#64748b;font-weight:bold;">...तथा ${generalList.length - 50} अन्य लाभार्थी डिजिटल डेटाबेस में सुरक्षित हैं।</td></tr>` : ''}
           </tbody>
         </table>
-
-        <!-- 3. फील्ड फोटो साक्ष्य अनुभाग -->
         <div class="section-heading photo-heading">
           3. स्वास्थ्य शिविर एवं फील्ड गतिविधियों के प्रामाणिक छायाचित्र (Ground Reality Evidence)
         </div>
@@ -426,18 +382,10 @@ function AdminDashboard() {
             </div>
           `).join('')}
         </div>
-
         <div class="footer-sign">
-          <div class="sign-box">
-            प्रोजेक्ट कोऑर्डिनेटर<br/>
-            JeevSathi Health Mission
-          </div>
-          <div class="sign-box">
-            अधिकृत हस्ताक्षरकर्ता / ट्रस्टी<br/>
-            Sinux India Foundation
-          </div>
+          <div class="sign-box">प्रोजेक्ट कोऑर्डिनेटर<br/>JeevSathi Health Mission</div>
+          <div class="sign-box">अधिकृत हस्ताक्षरकर्ता / ट्रस्टी<br/>Sinux India Foundation</div>
         </div>
-
       </body>
       </html>
     `;
@@ -447,7 +395,6 @@ function AdminDashboard() {
     reportWindow.document.close();
   };
 
-  // === PATIENT ACTIONS ===
   const handleApprove = async (id) => {
     if(window.confirm("क्या आप इस कार्ड को Approve करना चाहते हैं?")) {
       await supabase.from("camp_patients").update({ admin_status: "APPROVED", payment_status: "PAID" }).eq("id", id);
@@ -546,7 +493,6 @@ function AdminDashboard() {
     setShowIdModal(true);
   };
 
-  // === 📸 GALLERY CRUD FUNCTIONS ===
   const handleGalleryPhotoSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -612,7 +558,7 @@ function AdminDashboard() {
     }
   };
 
-  // === DERIVED COUNTS (केवल ₹150 कार्ड्स के लिए) ===
+  // === DERIVED COUNTS (कैम्प ओपीडी को कार्ड से अलग छांटना) ===
   const healthCardPatients = patients.filter(p => !isCampPatient(p));
   const campOpdPatients = patients.filter(p => isCampPatient(p));
 
@@ -622,6 +568,7 @@ function AdminDashboard() {
   const totalSeniorCitizens = patients.filter(isSeniorCitizen).length;
 
   const pendingApprovals = healthCardPatients.filter(p => 
+    !isCampPatient(p) &&
     String(p.admin_status).toUpperCase() !== "APPROVED" && 
     String(p.admin_status).toUpperCase() !== "REJECTED" &&
     p.payment_mode === "PAY_TO_FO"
@@ -999,7 +946,7 @@ function AdminDashboard() {
     <div style={styles.tabContent}>
       <h3 style={styles.sectionTitle}>🟠 FO नकद सत्यापन एवं फाइनल अप्रूवल ({pendingApprovals.length} Pending)</h3>
       <p style={{fontSize: "13px", color: "#64748b", margin: "-10px 0 15px 0"}}>
-        *ऑनलाइन भुगतान वाले कार्ड स्वतः अप्रूव हो जाते हैं। यहाँ केवल FO नकद वाले कार्ड्स सत्यापन हेतु प्रदर्शित हैं।
+        *केवल ₹150 वाले FO नकद कार्ड्स यहाँ प्रदर्शित हैं। कैम्प के फ्री ओपीडी मरीज इस सत्यापन सूची से अलग रखे गए हैं।
       </p>
 
       <table style={styles.table}>
@@ -1175,77 +1122,147 @@ function AdminDashboard() {
     </div>
   );
 
-  // 7️⃣ MASTER DB TAB
-  const renderMaster = () => (
-    <div style={styles.tabContent}>
-      <h3 style={styles.sectionTitle}>🗂️ Master Database (All Patient Cards & OPD Registry)</h3>
-      <table style={styles.table}>
-        <thead>
-          <tr style={styles.trHead}>
-            <th>ID</th>
-            <th>Name & Mobile</th>
-            <th>Location</th>
-            <th>Source / Category</th>
-            <th>Payment & Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {patients.map(p => {
-            const isCamp = isCampPatient(p);
-            const isOnline = isOnlinePaid(p);
-            return (
-              <tr key={p.id} style={styles.trBody}>
-                <td style={styles.td}>#{p.id}</td>
-                <td style={styles.td}>
-                  <strong>{p.patient_name}</strong><br/>
-                  <span style={styles.smText}>📱 +91 {p.mobile || "N/A"}</span>
-                </td>
-                <td style={styles.td}>{p.village || "-"}, {p.block || "-"}, {p.district || "-"}</td>
-                <td style={styles.td}>
-                  {isCamp ? (
-                    <span style={{background: "#e0f2fe", color: "#0369a1", padding: "3px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold"}}>
-                      🏕️ Free Camp OPD
+  // 7️⃣ MASTER DB TAB (WITH CAMP SELECTOR FILTER)
+  const renderMaster = () => {
+    // 🏕️ सिलेक्टेड कैंप के आधार पर फिल्टरिंग
+    const displayedPatients = patients.filter(p => {
+      if (selectedCampFilter === "All") return true;
+      const campName = p.camp_name || p.camp || "";
+      return String(campName).trim().toLowerCase() === String(selectedCampFilter).trim().toLowerCase();
+    });
+
+    return (
+      <div style={styles.tabContent}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", flexWrap: "wrap", gap: "12px" }}>
+          <div>
+            <h3 style={{ ...styles.sectionTitle, margin: 0 }}>🗂️ Master Database (मरीज़ एवं कैंप ओपीडी डेटाबेस)</h3>
+            <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b" }}>
+              कैंप सेलेक्ट करके उस कैंप के सभी मरीजों की सूची एक साथ देखें
+            </p>
+          </div>
+
+          {/* 🏕️ कैंप सिलेक्टर ड्रॉपडाउन */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "white", padding: "6px 12px", borderRadius: "8px", border: "1px solid #cbd5e1" }}>
+            <span style={{ fontSize: "12px", fontWeight: "bold", color: "#065f46" }}>🏕️ कैंप चुनें:</span>
+            <select
+              style={{ ...styles.select, padding: "6px 10px", fontSize: "12px", width: "auto" }}
+              value={selectedCampFilter}
+              onChange={(e) => setSelectedCampFilter(e.target.value)}
+            >
+              <option value="All">-- सभी कैंप्स (All Patients: {patients.length}) --</option>
+              {campsList.map(c => {
+                const cName = c.camp_name || c.name;
+                const count = patients.filter(p => (p.camp_name || p.camp) === cName).length;
+                return (
+                  <option key={c.id} value={cName}>
+                    {cName} ({count} मरीज)
+                  </option>
+                );
+              })}
+            </select>
+            {selectedCampFilter !== "All" && (
+              <button 
+                onClick={() => setSelectedCampFilter("All")}
+                style={{ background: "#fee2e2", color: "#991b1b", border: "none", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}
+              >
+                ✕ रीसेट
+              </button>
+            )}
+          </div>
+        </div>
+
+        {selectedCampFilter !== "All" && (
+          <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "10px 15px", borderRadius: "8px", marginBottom: "15px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "13px", color: "#166534", fontWeight: "bold" }}>
+              📍 सिलेक्टेड कैंप: "{selectedCampFilter}" • कुल उपस्थित मरीज: {displayedPatients.length}
+            </span>
+            <span style={{ fontSize: "12px", color: "#15803d" }}>
+              (फ्री ओपीडी: {displayedPatients.filter(isCampPatient).length} | कार्ड्स: {displayedPatients.filter(p => !isCampPatient(p)).length})
+            </span>
+          </div>
+        )}
+
+        <table style={styles.table}>
+          <thead>
+            <tr style={styles.trHead}>
+              <th>ID</th>
+              <th>Name & Mobile</th>
+              <th>कैंप का नाम (Camp)</th>
+              <th>Location</th>
+              <th>Source / Category</th>
+              <th>Payment & Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayedPatients.map(p => {
+              const isCamp = isCampPatient(p);
+              const isOnline = isOnlinePaid(p);
+              return (
+                <tr key={p.id} style={styles.trBody}>
+                  <td style={styles.td}>#{p.id}</td>
+                  <td style={styles.td}>
+                    <strong>{p.patient_name}</strong>
+                    {p.age && <span style={{ fontSize: "11px", color: "#64748b" }}> ({p.age} Y)</span>}<br/>
+                    <span style={styles.smText}>📱 +91 {p.mobile || "N/A"}</span>
+                  </td>
+                  <td style={styles.td}>
+                    <span style={{ background: "#eff6ff", color: "#1d4ed8", padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold" }}>
+                      🏕️ {p.camp_name || p.camp || "Direct / Center"}
                     </span>
-                  ) : (
-                    <span style={{background: isOnline ? "#dcfce7" : "#fff7ed", color: isOnline ? "#166534" : "#c2410c", padding: "3px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold"}}>
-                      {isOnline ? "💳 Online Paid" : "💵 FO Cash"}
-                    </span>
-                  )}
-                </td>
-                <td style={styles.td}>
-                  {isCamp ? (
-                    <span style={{background: "#f0fdf4", color: "#166534", padding: "4px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold"}}>
-                      OPD CONSULTED
-                    </span>
-                  ) : (
-                    <span style={{
-                      background: String(p.admin_status).toUpperCase() === "APPROVED" ? "#dcfce7" : String(p.admin_status).toUpperCase() === "REJECTED" ? "#fee2e2" : "#fef3c7",
-                      color: String(p.admin_status).toUpperCase() === "APPROVED" ? "#166534" : String(p.admin_status).toUpperCase() === "REJECTED" ? "#991b1b" : "#92400e",
-                      padding: "4px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold"
-                    }}>
-                      {p.admin_status || "PENDING"}
-                    </span>
-                  )}
-                </td>
-                <td style={styles.td}>
-                  {isCamp ? (
-                    <span style={{fontSize: "11px", color: "#64748b", fontWeight: "bold", marginRight: "8px"}}>
-                      📋 No Card
-                    </span>
-                  ) : (
-                    <button onClick={() => window.open(`/health-card/${p.id}`,"_blank")} style={styles.btnView}>👁️ View</button>
-                  )}
-                  <button onClick={() => handleDelete(p.id)} style={styles.btnDeleteSm}>🗑️</button>
+                  </td>
+                  <td style={styles.td}>{p.village || "-"}, {p.block || "-"}</td>
+                  <td style={styles.td}>
+                    {isCamp ? (
+                      <span style={{background: "#e0f2fe", color: "#0369a1", padding: "3px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold"}}>
+                        🏕️ Free Camp OPD
+                      </span>
+                    ) : (
+                      <span style={{background: isOnline ? "#dcfce7" : "#fff7ed", color: isOnline ? "#166534" : "#c2410c", padding: "3px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold"}}>
+                        {isOnline ? "💳 Online Paid" : "💵 FO Cash"}
+                      </span>
+                    )}
+                  </td>
+                  <td style={styles.td}>
+                    {isCamp ? (
+                      <span style={{background: "#f0fdf4", color: "#166534", padding: "4px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold"}}>
+                        OPD CONSULTED
+                      </span>
+                    ) : (
+                      <span style={{
+                        background: String(p.admin_status).toUpperCase() === "APPROVED" ? "#dcfce7" : String(p.admin_status).toUpperCase() === "REJECTED" ? "#fee2e2" : "#fef3c7",
+                        color: String(p.admin_status).toUpperCase() === "APPROVED" ? "#166534" : String(p.admin_status).toUpperCase() === "REJECTED" ? "#991b1b" : "#92400e",
+                        padding: "4px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold"
+                      }}>
+                        {p.admin_status || "PENDING"}
+                      </span>
+                    )}
+                  </td>
+                  <td style={styles.td}>
+                    {isCamp ? (
+                      <span style={{fontSize: "11px", color: "#64748b", fontWeight: "bold", marginRight: "8px"}}>
+                        📋 Free OPD
+                      </span>
+                    ) : (
+                      <button onClick={() => window.open(`/health-card/${p.id}`,"_blank")} style={styles.btnView}>👁️ View</button>
+                    )}
+                    <button onClick={() => handleDelete(p.id)} style={styles.btnDeleteSm}>🗑️</button>
+                  </td>
+                </tr>
+              );
+            })}
+            {displayedPatients.length === 0 && (
+              <tr>
+                <td colSpan="7" style={{textAlign:"center", padding:"25px", color: "#64748b"}}>
+                  इस कैंप में कोई मरीज़ पंजीकृत नहीं मिला।
                 </td>
               </tr>
-            );
-          })}
-          {patients.length === 0 && <tr><td colSpan="6" style={{textAlign:"center", padding:"20px"}}>कोई रिकॉर्ड उपलब्ध नहीं है।</td></tr>}
-        </tbody>
-      </table>
-    </div>
-  );
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   // 8️⃣ 📸 CAMP GALLERY TAB
   const renderGallery = () => (
