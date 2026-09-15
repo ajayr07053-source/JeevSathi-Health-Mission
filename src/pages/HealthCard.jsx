@@ -177,7 +177,7 @@ function HealthCard() {
 
           <div style={styles.contactFooter}>
             <div style={styles.footerText}>
-              <strong style={{color: "#b91c1c", fontSize: "9px"}}>Medical Helpline: +91 7518338831</strong><br/>
+              <strong style={{color: "#b91c1c", fontSize: "9px"}}>Medical Helpline: +91 6390764638</strong><br/>
               <strong>Emergency:</strong> 108 | <strong>Email:</strong> support@jeevsathi.org <br/>
               <strong>HQ:</strong> Lucknow, Uttar Pradesh, India
             </div>
