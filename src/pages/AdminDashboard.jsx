@@ -33,11 +33,11 @@ function AdminDashboard() {
   const [docUploading, setDocUploading] = useState(false);
 
   // === FILTER STATES ===
-  const [filterType, setFilterType] = useState("online_paid");
+  const [filterType, setFilterType] = useState("camp_patient"); // Default or user selected
   const [filterDistrict, setFilterDistrict] = useState("All");
   const [filterBlock, setFilterBlock] = useState("All");
   const [filterMember, setFilterMember] = useState("All");
-  const [selectedCampFilter, setSelectedCampFilter] = useState("All"); // 🏕️ सिलेक्टेड कैंप स्टेट
+  const [selectedCampFilter, setSelectedCampFilter] = useState("All");
 
   // === 📸 GALLERY STATES ===
   const [galleryList, setGalleryList] = useState([]);
@@ -558,7 +558,7 @@ function AdminDashboard() {
     }
   };
 
-  // === DERIVED COUNTS (कैम्प ओपीडी को कार्ड से अलग छांटना) ===
+  // === DERIVED COUNTS ===
   const healthCardPatients = patients.filter(p => !isCampPatient(p));
   const campOpdPatients = patients.filter(p => isCampPatient(p));
 
@@ -583,15 +583,35 @@ function AdminDashboard() {
   const activeSupervisors = usersList.filter(u => String(u.role).toUpperCase().includes("SUPER")).length;
   const activeFOs = usersList.filter(u => String(u.role).toUpperCase().includes("FIELD")).length;
 
-  // 1️⃣ ANALYTICS TAB
+  // 1️⃣ ANALYTICS TAB (अब सभी फ़िल्टर के साथ पूरी तरह काम करेगा)
   const renderAnalytics = () => {
-    const filteredByLocation = healthCardPatients.filter(p => {
-      if (filterDistrict !== "All" && p.district !== filterDistrict) return false;
-      if (filterBlock !== "All" && p.block !== filterBlock) return false;
+    // 🔍 संयुक्त फ़िल्टर लॉजिक (ज़िला, ब्लॉक, और FO मेंबर)
+    const filteredPatients = patients.filter(p => {
+      // 1. ज़िला फ़िल्टर
+      if (filterDistrict !== "All") {
+        const pDist = String(p.district || "").trim().toLowerCase();
+        const fDist = String(filterDistrict).trim().toLowerCase();
+        if (!pDist.includes(fDist)) return false;
+      }
+      // 2. ब्लॉक फ़िल्टर
+      if (filterBlock !== "All") {
+        const pBlock = String(p.block || "").trim().toLowerCase();
+        const fBlock = String(filterBlock).trim().toLowerCase();
+        if (!pBlock.includes(fBlock)) return false;
+      }
+      // 3. FO / सुपरवाइज़र फ़िल्टर
+      if (filterMember !== "All") {
+        const pFo = String(p.fo_name || "").trim().toLowerCase();
+        const fMem = String(filterMember).trim().toLowerCase();
+        if (pFo !== fMem) return false;
+      }
       return true;
     });
 
-    const onlineInFilter = filteredByLocation.filter(isOnlinePaid);
+    const onlineInFilter = filteredPatients.filter(isOnlinePaid);
+    const campOpdInFilter = filteredPatients.filter(isCampPatient);
+    const totalCardsInFilter = filteredPatients.filter(p => !isCampPatient(p));
+    const referredInFilter = filteredPatients.filter(p => p.is_referred === "Yes" || p.referred === "Yes");
 
     return (
       <div style={styles.tabContent}>
@@ -620,45 +640,15 @@ function AdminDashboard() {
           </div>
         )}
 
-        <div style={{...styles.statsGrid, marginBottom: "25px"}}>
-          <div style={{...styles.statCard, borderLeft: "5px solid #2563eb", background: "#f0f9ff"}} onClick={() => setActiveTab("online_paid")}>
-            <span style={{fontSize: "12px", fontWeight: "bold", color: "#0284c7"}}>💳 ऑनलाइन पेमेंट वाले कुल कार्ड</span>
-            <h2 style={{color: "#1d4ed8", margin: "6px 0"}}>{allOnlinePaidPatients.length} Cards</h2>
-            <p style={styles.smText}>स्वतः एक्टिवेटेड • <strong>₹{allOnlinePaidPatients.length * 150}</strong> ऑनलाइन रेवेन्यू</p>
-          </div>
-
-          <div style={{...styles.statCard, borderLeft: "5px solid #16a34a", background: "#f0fdf4"}} onClick={() => setActiveTab("master")}>
-            <span style={{fontSize: "12px", fontWeight: "bold", color: "#16a34a"}}>👮 फील्ड टीम द्वारा बने कार्ड (FO)</span>
-            <h2 style={{color: "#15803d", margin: "6px 0"}}>{foCreatedPatients.length} Cards</h2>
-            <p style={styles.smText}>फील्ड ऑफिसर्स द्वारा पंजीकृत • <strong>₹{foPaidCount * 150}</strong> कलेक्टेड</p>
-          </div>
-
-          <div style={{...styles.statCard, borderLeft: "5px solid #ea580c", background: "#fff7ed"}} onClick={() => setActiveTab("approvals")}>
-            <span style={{fontSize: "12px", fontWeight: "bold", color: "#c2410c"}}>⏳ FO नकद सत्यापन पेंडिंग</span>
-            <h2 style={{color: "#ea580c", margin: "6px 0"}}>{pendingApprovals.length} Cards</h2>
-            <p style={styles.smText}>एडमिन अप्रूवल की प्रतीक्षा में</p>
-          </div>
-
-          <div style={{...styles.statCard, borderLeft: "5px solid #7c3aed", background: "#f5f3ff"}}>
-            <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
-              <span style={{fontSize: "12px", fontWeight: "bold", color: "#6d28d9"}}>👴 Senior Citizens (60+)</span>
-              <button onClick={exportSeniorCitizenReport} style={{background:"#7c3aed", color:"white", border:"none", padding:"4px 8px", borderRadius:"4px", fontSize:"10px", cursor:"pointer", fontWeight:"bold"}}>
-                📥 CSV
-              </button>
-            </div>
-            <h2 style={{color: "#5b21b6", margin: "6px 0"}}>{totalSeniorCitizens} लाभार्थी</h2>
-            <p style={styles.smText}>AVYAY / IPSrC सरकारी ग्रांट हेतु सत्यापित डेटा</p>
-          </div>
-        </div>
-
+        {/* 🎛️ फ़िल्टर बॉक्स */}
         <div style={styles.filterBox}>
           <div style={styles.filterGroup}>
             <label style={styles.label}>🔍 फ़िल्टर का प्रकार (Data Type):</label>
             <select style={styles.select} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-              <option value="online_paid">💳 Online Paid Cards (ऑनलाइन पेमेंट से कितने बने)</option>
+              <option value="camp_patient">🏕️ Camp Patients (Free OPD Registry)</option>
+              <option value="online_paid">💳 Online Paid Cards (ऑनलाइन पेमेंट कार्ड्स)</option>
               <option value="health_card">🪪 Total Health Cards (सभी कार्ड्स विवरण)</option>
               <option value="team">👥 Team Stats & Performance</option>
-              <option value="camp_patient">🏕️ Camp Patients (Free OPD Registry)</option>
               <option value="hospital">🏥 Hospital Referrals</option>
             </select>
           </div>
@@ -688,26 +678,122 @@ function AdminDashboard() {
               ))}
             </select>
           </div>
+
+          {(filterDistrict !== "All" || filterBlock !== "All" || filterMember !== "All") && (
+            <button 
+              onClick={() => { setFilterDistrict("All"); setFilterBlock("All"); setFilterMember("All"); }}
+              style={{ background: "#fee2e2", color: "#991b1b", border: "none", padding: "8px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: "bold", cursor: "pointer", alignSelf: "flex-end" }}
+            >
+              ✕ Clear All Filters
+            </button>
+          )}
         </div>
 
+        {/* 📊 चयनित फ़िल्टर के अनुसार डायनामिक आंकड़े */}
         <div style={{marginTop: "20px"}}>
+          
+          {/* A. 🏕️ कैम्प ओपीडी मरीज फ़िल्टर */}
+          {filterType === "camp_patient" && (
+            <div>
+              <div style={styles.statsGrid}>
+                <div style={{...styles.statCard, borderTop: "4px solid #0284c7"}}>
+                  <span style={{fontSize: "12px", fontWeight: "bold", color: "#0284c7"}}>🏕️ Total Free OPD</span>
+                  <h2 style={{color: "#0369a1", margin: "6px 0"}}>{campOpdInFilter.length}</h2>
+                  <p style={styles.smText}>Camp Registrations (इस फ़िल्टर में)</p>
+                </div>
+                <div style={{...styles.statCard, borderTop: "4px solid #16a34a"}}>
+                  <span style={{fontSize: "12px", fontWeight: "bold", color: "#16a34a"}}>✅ Total Camps</span>
+                  <h2 style={{color: "#15803d", margin: "6px 0"}}>{campsList.length}</h2>
+                  <p style={styles.smText}>Successfully organized</p>
+                </div>
+                <div style={{...styles.statCard, borderTop: "4px solid #dc2626"}}>
+                  <span style={{fontSize: "12px", fontWeight: "bold", color: "#dc2626"}}>🚑 Referred</span>
+                  <h2 style={{color: "#dc2626", margin: "6px 0"}}>{referredInFilter.length}</h2>
+                  <p style={styles.smText}>Need higher center</p>
+                </div>
+              </div>
+
+              {/* 📋 कैम्प मरीजों की विस्तृत लिस्टिंग टेबल */}
+              <div style={{...styles.card, marginTop: "20px"}}>
+                <h4 style={{margin: "0 0 12px 0", color: "#0369a1", display: "flex", justifyContent: "space-between", alignItems: "center"}}>
+                  <span>🏕️ कैम्प ओपीडी मरीजों की सूची ({campOpdInFilter.length}) — [ज़िला: {filterDistrict} | ब्लॉक: {filterBlock} | FO: {filterMember}]</span>
+                  <span style={{background: "#e0f2fe", color: "#0369a1", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold"}}>
+                    Free OPD Registry
+                  </span>
+                </h4>
+                <div style={{overflowX: "auto"}}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr style={styles.trHead}>
+                        <th>ID</th>
+                        <th>मरीज़ का नाम व उम्र</th>
+                        <th>मोबाइल नंबर</th>
+                        <th>कैंप का नाम</th>
+                        <th>गाँव / ब्लॉक / ज़िला</th>
+                        <th>Field Officer (FO)</th>
+                        <th>जांच स्थिति</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {campOpdInFilter.map(p => (
+                        <tr key={p.id} style={styles.trBody}>
+                          <td style={styles.td}>#{p.id}</td>
+                          <td style={styles.td}>
+                            <strong>{p.patient_name}</strong>
+                            {p.age && <span style={{ fontSize: "11px", color: "#64748b" }}> ({p.age} वर्ष)</span>}<br/>
+                            <span style={styles.smText}>{p.gender || "Gender N/A"}</span>
+                          </td>
+                          <td style={styles.td}>📱 +91 {p.mobile || "N/A"}</td>
+                          <td style={styles.td}>
+                            <span style={{ background: "#f0fdf4", color: "#166534", padding: "3px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "bold" }}>
+                              🏕️ {p.camp_name || p.camp || "Free Camp"}
+                            </span>
+                          </td>
+                          <td style={styles.td}>{p.village || "-"}, {p.block || "-"}, {p.district || "-"}</td>
+                          <td style={styles.td}>
+                            <span style={{ background: "#f1f5f9", color: "#334155", padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: "bold" }}>
+                              👮 {p.fo_name || "Direct"}
+                            </span>
+                          </td>
+                          <td style={styles.td}>
+                            <span style={{ background: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold" }}>
+                              ✅ OPD CONSULTED
+                            </span>
+                          </td>
+                          <td style={styles.td}>
+                            <button onClick={() => handleDelete(p.id)} style={styles.btnDeleteSm}>🗑️ डिलीट</button>
+                          </td>
+                        </tr>
+                      ))}
+                      {campOpdInFilter.length === 0 && (
+                        <tr><td colSpan="8" style={{textAlign: "center", padding: "25px", color: "#64748b"}}>इस फ़िल्टर में कोई कैम्प ओपीडी मरीज नहीं मिला।</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* B. 💳 ऑनलाइन पेड कार्ड्स फ़िल्टर */}
           {filterType === "online_paid" && (
             <div>
               <div style={styles.statsGrid}>
                 <div style={{...styles.statCard, borderTop: "4px solid #2563eb"}}>
                   <h3>💳 Online Paid Cards</h3>
                   <h2 style={{color: "#2563eb"}}>{onlineInFilter.length}</h2>
-                  <p style={styles.smText}>इस फ़िल्टर ({filterDistrict} - {filterBlock}) में</p>
+                  <p style={styles.smText}>इस फ़िल्टर में</p>
                 </div>
                 <div style={{...styles.statCard, borderTop: "4px solid #16a34a"}}>
                   <h3>💰 Online Revenue (₹)</h3>
                   <h2 style={{color: "#16a34a"}}>₹{onlineInFilter.length * 150}</h2>
-                  <p style={styles.smText}>सीधे ऑनलाइन खाते में (100% Paid)</p>
+                  <p style={styles.smText}>सीधे खाते में (100% Paid)</p>
                 </div>
                 <div style={{...styles.statCard, borderTop: "4px solid #0f172a"}}>
                   <h3>⚡ Instant Activation</h3>
                   <h2 style={{color: "#0f172a"}}>{onlineInFilter.length} / {onlineInFilter.length}</h2>
-                  <p style={styles.smText}>बिना एडमिन अप्रूवल स्वतः सक्रिय</p>
+                  <p style={styles.smText}>स्वतः सक्रिय कार्ड्स</p>
                 </div>
               </div>
 
@@ -755,71 +841,41 @@ function AdminDashboard() {
             </div>
           )}
 
+          {/* C. 👥 टीम परफॉरमेंस */}
           {filterType === "team" && (
             <div style={styles.statsGrid}>
-              {filterMember === "All" ? (
-                <>
-                  <div style={styles.statCard}><h3>👨‍💼 Supervisors</h3><h2>{activeSupervisors} Active</h2><p style={styles.smText}>System Wide</p></div>
-                  <div style={styles.statCard}><h3>🪪 Field Officers</h3><h2>{activeFOs} Active</h2><p style={styles.smText}>System Wide</p></div>
-                  <div style={styles.fullCard}>
-                    <h4>Active Team List ({filterDistrict})</h4>
-                    <ul style={{lineHeight: "1.8", maxHeight: "150px", overflowY: "auto"}}>
-                      {usersList.map(u => (
-                        <li key={u.id}>🟢 <strong>{u.name} ({String(u.role).replace("_"," ")})</strong> - {u.district}, {u.block} <span style={{color:"#ea580c", fontSize:"12px"}}>(Adv: ₹{u.advance_payment || 0})</span></li>
-                      ))}
-                      {usersList.length === 0 && <li>कोई टीम मेंबर नहीं मिला।</li>}
-                    </ul>
-                  </div>
-                </>
-              ) : (
-                (() => {
-                  const memberCards = healthCardPatients.filter(p => String(p.fo_name).trim().toLowerCase() === String(filterMember).trim().toLowerCase());
-                  const apprvd = memberCards.filter(p => String(p.admin_status).toUpperCase() === "APPROVED").length;
-                  return (
-                    <>
-                      <div style={styles.statCard}>
-                        <h3>👤 Staff Name</h3>
-                        <h2 style={{color: "#2563eb"}}>{filterMember}</h2>
-                        <p style={styles.smText}>Selected Member</p>
-                      </div>
-                      <div style={styles.statCard}>
-                        <h3>💳 Total Cards Created</h3>
-                        <h2>{memberCards.length} Cards</h2>
-                        <p style={styles.smText}>Total ₹150 Cards by this user</p>
-                      </div>
-                      <div style={styles.statCard}>
-                        <h3>✅ Approved Cards</h3>
-                        <h2 style={{color:"#16a34a"}}>{apprvd} Cards</h2>
-                        <p style={styles.smText}>Verified by Admin</p>
-                      </div>
-                    </>
-                  );
-                })()
-              )}
+              <div style={styles.statCard}>
+                <h3>👤 Selected Staff</h3>
+                <h2 style={{color: "#2563eb"}}>{filterMember}</h2>
+                <p style={styles.smText}>Location: {filterDistrict} - {filterBlock}</p>
+              </div>
+              <div style={styles.statCard}>
+                <h3>💳 Total ₹150 Cards Created</h3>
+                <h2>{totalCardsInFilter.length} Cards</h2>
+                <p style={styles.smText}>Approved: {totalCardsInFilter.filter(p => p.admin_status === "APPROVED").length}</p>
+              </div>
+              <div style={styles.statCard}>
+                <h3>🏕️ Free Camp OPD Patients</h3>
+                <h2 style={{color: "#0369a1"}}>{campOpdInFilter.length} Patients</h2>
+                <p style={styles.smText}>Registered during field camps</p>
+              </div>
             </div>
           )}
 
+          {/* D. 🪪 टोटल हेल्थ कार्ड्स */}
           {filterType === "health_card" && (
             <div style={styles.statsGrid}>
-              <div style={styles.statCard}><h3>💳 Total Cards</h3><h2>{totalCards}</h2><p style={styles.smText}>Total ₹150 applied</p></div>
-              <div style={styles.statCard}><h3>💳 Online Paid</h3><h2 style={{color:"#2563eb"}}>{allOnlinePaidPatients.length}</h2><p style={styles.smText}>Auto Approved</p></div>
-              <div style={styles.statCard}><h3>💰 Total Received</h3><h2 style={{color:"#16a34a"}}>₹{approvedCards * 150}</h2><p style={styles.smText}>{approvedCards} Cards Approved</p></div>
-              <div style={styles.statCard}><h3>⏳ FO Pending</h3><h2 style={{color:"#ea580c"}}>₹{(totalCards - approvedCards) * 150}</h2><p style={styles.smText}>{(totalCards - approvedCards)} Cards Pending</p></div>
+              <div style={styles.statCard}><h3>💳 Total Cards</h3><h2>{totalCardsInFilter.length}</h2><p style={styles.smText}>In Filter</p></div>
+              <div style={styles.statCard}><h3>💳 Online Paid</h3><h2 style={{color:"#2563eb"}}>{onlineInFilter.length}</h2><p style={styles.smText}>Auto Approved</p></div>
+              <div style={styles.statCard}><h3>💰 Revenue</h3><h2 style={{color:"#16a34a"}}>₹{totalCardsInFilter.filter(p => p.admin_status === "APPROVED").length * 150}</h2><p style={styles.smText}>Approved Cards</p></div>
             </div>
           )}
 
-          {filterType === "camp_patient" && (
-            <div style={styles.statsGrid}>
-              <div style={styles.statCard}><h3>🏕️ Total Free OPD</h3><h2>{campOpdPatients.length}</h2><p style={styles.smText}>Camp Registrations (No Card)</p></div>
-              <div style={styles.statCard}><h3>✅ Total Camps</h3><h2 style={{color:"#16a34a"}}>{campsList.length}</h2><p style={styles.smText}>Successfully organized</p></div>
-              <div style={styles.statCard}><h3>🚑 Referred</h3><h2 style={{color:"#dc2626"}}>{patients.filter(p=>p.is_referred==="Yes").length}</h2><p style={styles.smText}>Need higher center</p></div>
-            </div>
-          )}
-
+          {/* E. 🏥 अस्पताल */}
           {filterType === "hospital" && (
             <div style={styles.statsGrid}>
               <div style={styles.statCard}><h3>🏥 Registered Hospitals</h3><h2>{hospitalsList.length}</h2><p style={styles.smText}>Partner Hospitals</p></div>
-              <div style={styles.statCard}><h3>💸 Referred Patients</h3><h2 style={{color:"#16a34a"}}>{patients.filter(p=>p.is_referred==="Yes").length}</h2><p style={styles.smText}>Sent to hospitals</p></div>
+              <div style={styles.statCard}><h3>💸 Referred Patients</h3><h2 style={{color:"#16a34a"}}>{referredInFilter.length}</h2><p style={styles.smText}>Sent to hospitals</p></div>
             </div>
           )}
         </div>
@@ -1122,9 +1178,8 @@ function AdminDashboard() {
     </div>
   );
 
-  // 7️⃣ MASTER DB TAB (WITH CAMP SELECTOR FILTER)
+  // 7️⃣ MASTER DB TAB
   const renderMaster = () => {
-    // 🏕️ सिलेक्टेड कैंप के आधार पर फिल्टरिंग
     const displayedPatients = patients.filter(p => {
       if (selectedCampFilter === "All") return true;
       const campName = p.camp_name || p.camp || "";
@@ -1136,12 +1191,11 @@ function AdminDashboard() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", flexWrap: "wrap", gap: "12px" }}>
           <div>
             <h3 style={{ ...styles.sectionTitle, margin: 0 }}>🗂️ Master Database (मरीज़ एवं कैंप ओपीडी डेटाबेस)</h3>
-            <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b" }}>
+            <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b"}}>
               कैंप सेलेक्ट करके उस कैंप के सभी मरीजों की सूची एक साथ देखें
             </p>
           </div>
 
-          {/* 🏕️ कैंप सिलेक्टर ड्रॉपडाउन */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "white", padding: "6px 12px", borderRadius: "8px", border: "1px solid #cbd5e1" }}>
             <span style={{ fontSize: "12px", fontWeight: "bold", color: "#065f46" }}>🏕️ कैंप चुनें:</span>
             <select
@@ -1387,7 +1441,7 @@ function AdminDashboard() {
     </div>
   );
 
-  // 9️⃣ 📁 GOV COMPLIANCE & 8-FOLDERS VAULT (WITH 01 DOC UPLOAD MODAL)
+  // 9️⃣ 📁 GOV COMPLIANCE & 8-FOLDERS VAULT
   const renderGovVault = () => {
     const seniorList = patients.filter(isSeniorCitizen);
 
@@ -1451,7 +1505,6 @@ function AdminDashboard() {
           ))}
         </div>
 
-        {/* 📂 01 — REGISTRATION DOCUMENTS UPLOAD MODAL */}
         {showDocModal && (
           <div style={styles.modalOverlay} onClick={() => setShowDocModal(false)}>
             <div style={{ ...styles.modalCard, maxWidth: "550px" }} onClick={(e) => e.stopPropagation()}>
@@ -1518,7 +1571,6 @@ function AdminDashboard() {
                 </div>
               </form>
 
-              {/* पहले से अपलोड किए गए दस्तावेज़ों की सूची */}
               <div style={{ marginTop: "25px", borderTop: "1px solid #e2e8f0", paddingTop: "15px" }}>
                 <h4 style={{ margin: "0 0 10px 0", fontSize: "14px", color: "#334155" }}>📋 सुरक्षित अपलोड किए गए दस्तावेज़ ({orgDocsList.length}):</h4>
                 <div style={{ maxHeight: "150px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1644,7 +1696,7 @@ const styles = {
   sectionTitle: { color: "#0f172a", fontSize: "18px", margin: "0 0 16px 0" },
   
   filterBox: { background: "white", padding: "18px", borderRadius: "12px", border: "1px solid #e2e8f0", display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" },
-  filterGroup: { display: "flex", flexDirection: "column", gap: "5px", flex: "1 1 200px" },
+  filterGroup: { display: "flex", flexDirection: "column", gap: "5px", flex: "1 1 180px" },
   label: { fontSize: "11px", fontWeight: "bold", color: "#475569", textTransform: "uppercase" },
   select: { padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "13px", outline: "none", backgroundColor: "#f8fafc" },
 
