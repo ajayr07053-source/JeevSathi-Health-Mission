@@ -86,8 +86,8 @@ const SingleCardRender = ({ p }) => {
         <div style={styles.contactFooter}>
           <div style={styles.footerText}>
             <strong style={{color: "#b91c1c", fontSize: "9px"}}>Medical Helpline: +91 6390764638</strong><br/>
-            <strong>Emergency:</strong> 108 | <strong>Email:</strong> support@jeevsathi.org <br/>
-            <strong>HQ:</strong> Lucknow, Uttar Pradesh, India
+            <strong>Emergency:</strong> 108 | <strong>Email:</strong> jeevsathiapp@gmail.com <br/>
+            <strong>HQ:</strong> Padariya Tula, Bijua, Kheri, Uttar Pradesh, India
           </div>
         </div>
         <div style={styles.authBox}>
@@ -321,8 +321,8 @@ function HealthCard() {
             <div style={styles.contactFooter}>
               <div style={styles.footerText}>
                 <strong style={{color: "#b91c1c", fontSize: "9px"}}>Medical Helpline: +91 6390764638</strong><br/>
-                <strong>Emergency:</strong> 108 | <strong>Email:</strong> support@jeevsathi.org <br/>
-                <strong>HQ:</strong> Lucknow, Uttar Pradesh, India
+                <strong>Emergency:</strong> 108 | <strong>Email:</strong> jeevsathiapp@gmail.com <br/>
+                <strong>HQ:</strong> Padariya Tula, Bijua, Kheri, Uttar Pradesh, India
               </div>
             </div>
             
@@ -439,11 +439,11 @@ function HealthCard() {
 // 🎨 PREMIUM CARD STYLES
 // ==========================================
 const styles = {
-  page: { minHeight: "100vh", backgroundColor: "#f3f8f5", padding: "20px", fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", display: "flex", flexDirection: "column", alignItems: "center" },
+  page: { minHeight: "100vh", backgroundColor: "#ffffff", padding: "20px", fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", display: "flex", flexDirection: "column", alignItems: "center" },
   
   actionHeader: { width: "100%", maxWidth: "750px", display: "flex", justifyContent: "space-between", marginBottom: "20px", alignItems: "center" },
-  backBtn: { background: "white", border: "1px solid #ccc", padding: "10px 15px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
-  printBtn: { background: "#16804d", color: "white", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
+  backBtn: { background: "white", border: "1px solid #fdfdfd", padding: "10px 15px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
+  printBtn: { background: "#24aa69", color: "white", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
   multiBtn: { background: "#0284c7", color: "white", border: "none", padding: "10px 18px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
   downloadBtn: { background: "#f97316", color: "white", border: "none", padding: "10px 20px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" },
   
@@ -451,7 +451,7 @@ const styles = {
   
   multiCardGrid: { display: "flex", flexDirection: "column", gap: "15px", alignItems: "center", width: "100%" },
 
-  cardFront: { position: "relative", width: "350px", height: "220px", background: "linear-gradient(135deg, #ffffff 0%, #e8f5ec 100%)", borderRadius: "12px", overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.15)", border: "1px solid #cce4d6", display: "flex", flexDirection: "column", boxSizing: "border-box", pageBreakInside: "avoid" },
+  cardFront: { position: "relative", width: "350px", height: "220px", background: "linear-gradient(135deg, #ffffff 0%, #ffffff 100%)", borderRadius: "12px", overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.15)", border: "1px solid #cce4d6", display: "flex", flexDirection: "column", boxSizing: "border-box", pageBreakInside: "avoid" },
   watermark: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 0, pointerEvents: "none", opacity: 0.05, width: "150px", height: "150px" },
   watermarkImg: { width: "100%", height: "100%", objectFit: "contain" },
   
@@ -482,18 +482,18 @@ const styles = {
   benefitsList: { margin: 0, paddingLeft: "0", listStyle: "none", fontSize: "8.5px", color: "#374151", lineHeight: "1.4" },
   
   qrSection: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", marginTop: "5px" },
-  qrCodeBox: { width: "55px", height: "55px", background: "white", border: "1px solid #ccc", borderRadius: "4px", display: "flex", justifyContent: "center", alignItems: "center", overflow: "hidden" },
+  qrCodeBox: { width: "55px", height: "55px", background: "white", border: "1px solid #fffefe", borderRadius: "4px", display: "flex", justifyContent: "center", alignItems: "center", overflow: "hidden" },
   
-  disclaimerBox: { background: "#fef2f2", border: "1px solid #fecaca", padding: "5px 6px", borderRadius: "6px", marginTop: "8px" },
+  disclaimerBox: { background: "#ffffff", border: "1px solid #fecaca", padding: "5px 6px", borderRadius: "6px", marginTop: "8px" },
   disclaimerTitle: { margin: "0 0 2px", fontSize: "9px", fontWeight: "bold", color: "#b91c1c" },
   disclaimerText: { margin: 0, fontSize: "8px", color: "#991b1b", lineHeight: "1.3", textAlign: "justify" },
   
-  contactFooter: { borderTop: "1px solid #e5e7eb", paddingTop: "5px", marginTop: "8px", width: "65%" },
+  contactFooter: { borderTop: "1px solid #fdfdfd", paddingTop: "5px", marginTop: "8px", width: "65%" },
   footerText: { fontSize: "8px", color: "#6b7280", lineHeight: "1.4" },
   
   authBox: { position: "absolute", bottom: "8px", right: "12px", display: "flex", flexDirection: "column", alignItems: "center", width: "105px", zIndex: 10 },
   // 🚀 मोहर (Stamp) का साइज़ 80px से बढ़ाकर 105px कर दिया गया है
-  stampImg: { position: "absolute", width: "105px", height: "105px", opacity: 0.32, bottom: "-2px", right: "0px", zIndex: 0, objectFit: "contain" }, 
+  stampImg: { position: "absolute", width: "97px", height: "97px", opacity: 0.29, bottom: "-2px", right: "0px", zIndex: 0, objectFit: "contain" }, 
   signImg: { position: "relative", width: "95px", height: "35px", objectFit: "contain", zIndex: 1, marginBottom: "2px" }, 
   authText: { position: "relative", margin: 0, fontSize: "7px", fontWeight: "bold", color: "#173b2a", borderTop: "1px solid #173b2a", width: "100%", textAlign: "center", paddingTop: "2px", zIndex: 1 },
 

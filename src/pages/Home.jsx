@@ -365,8 +365,8 @@ function Home() {
       {/* 🔴 TOP HELPLINE BAR */}
       <div style={styles.topBar}>
         <div style={styles.topBarContent}>
-          <span>📞 Helpline: +91 7518338831 (24x7)</span>
-          <span>✉️ support@jeevsathi.org</span>
+          <span>📞 Helpline: +91 6390764638 (24x7)</span>
+          <span>✉️ jeevsathiapp@gmail.com</span>
         </div>
       </div>
 
@@ -673,7 +673,7 @@ function Home() {
                 <li>🚨 <strong>इमरजेंसी कोऑर्डिनेशन:</strong> आपात स्थिति में त्वरित मदद</li>
               </ul>
             </div>
-            <a href="tel:+917518338831" style={styles.btnCallAction}>
+            <a href="tel:+916390764638" style={styles.btnCallAction}>
               📞 डॉक्टर गाइडेंस हेतु कॉल करें
             </a>
           </div>
@@ -1075,8 +1075,8 @@ function Home() {
           </div>
           <div style={styles.footerContact}>
             <h4>Contact Us</h4>
-            <p>📍 Lucknow, Uttar Pradesh, India</p>
-            <p>📧 support@jeevsathi.org</p>
+            <p>📍 Padariya Tula, Bijua, Kheri, Uttar Pradesh, India</p>
+            <p>📧 jeevsathiapp@gmail.com</p>
           </div>
         </div>
         <div style={styles.footerBottom}>
