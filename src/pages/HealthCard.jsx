@@ -500,8 +500,8 @@ const styles = {
   contactFooter: { borderTop: "1px solid #e5e7eb", paddingTop: "5px", marginTop: "8px", width: "65%" },
   footerText: { fontSize: "8px", color: "#6b7280", lineHeight: "1.4" },
   
-  authBox: { position: "absolute", bottom: "8px", right: "12px", display: "flex", flexDirection: "column", alignItems: "center", width: "90px", zIndex: 10 },
-  stampImg: { position: "absolute", width: "80px", height: "80px", opacity: 0.25, bottom: "5px", right: "5px", zIndex: 0, objectFit: "contain" }, 
+  authBox: { position: "absolute", bottom: "8px", right: "12px", display: "flex", flexDirection: "column", alignItems: "center", width: "105px", zIndex: 10 },
+  stampImg: { position: "absolute", width: "105px", height: "105px", opacity: 0.32, bottom: "-2px", right: "0px", zIndex: 0, objectFit: "contain" }, 
   signImg: { position: "relative", width: "95px", height: "35px", objectFit: "contain", zIndex: 1, marginBottom: "2px" }, 
   authText: { position: "relative", margin: 0, fontSize: "7px", fontWeight: "bold", color: "#173b2a", borderTop: "1px solid #173b2a", width: "100%", textAlign: "center", paddingTop: "2px", zIndex: 1 },
 
