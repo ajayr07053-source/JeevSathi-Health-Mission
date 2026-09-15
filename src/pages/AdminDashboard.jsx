@@ -26,7 +26,7 @@ function AdminDashboard() {
   const [showIdModal, setShowIdModal] = useState(false);
   const [selectedUserForId, setSelectedUserForId] = useState(null);
 
-  // === 📁 GOV VAULT & DOCS STATES (ADDED) ===
+  // === 📁 GOV VAULT & DOCS STATES ===
   const [showDocModal, setShowDocModal] = useState(false);
   const [orgDocsList, setOrgDocsList] = useState([]);
   const [docForm, setDocForm] = useState({ doc_type: "SECTION_8", doc_title: "Section 8 Certificate", file_url: "" });
@@ -115,8 +115,19 @@ function AdminDashboard() {
   }, [filterDistrict, districtsList]);
 
   // === HELPER FUNCTIONS ===
+  // जांच: क्या यह रिकॉर्ड कैम्प ओपीडी का है (जिसका कार्ड नहीं बनना है)
+  const isCampPatient = (p) => {
+    return (
+      p.payment_status === "FREE_OPD" ||
+      p.payment_mode === "FREE_OPD" ||
+      p.payment_mode === "CAMP_OPD" ||
+      p.is_camp_opd === true ||
+      p.card_type === "CAMP_OPD"
+    );
+  };
+
   const isOnlinePaid = (p) => {
-    return p.payment_mode === "ONLINE_PAID" || p.payment_mode === "ONLINE_PAY" || (p.payment_status === "PAID" && p.payment_mode !== "PAY_TO_FO");
+    return !isCampPatient(p) && (p.payment_mode === "ONLINE_PAID" || p.payment_mode === "ONLINE_PAY" || (p.payment_status === "PAID" && p.payment_mode !== "PAY_TO_FO"));
   };
 
   const isDirectPatient = (p) => {
@@ -163,7 +174,6 @@ function AdminDashboard() {
       updated_at: new Date()
     };
 
-    // Upsert (यदि doc_type पहले से है तो अपडेट करें, वरना नया जोड़ें)
     const { error } = await supabase.from("org_documents").upsert([payload], { onConflict: "doc_type" });
     setDocUploading(false);
 
@@ -602,20 +612,23 @@ function AdminDashboard() {
     }
   };
 
-  // === DERIVED COUNTS ===
-  const totalCards = patients.length;
-  const approvedCards = patients.filter(p => String(p.admin_status).toUpperCase() === "APPROVED").length;
-  const allOnlinePaidPatients = patients.filter(isOnlinePaid);
+  // === DERIVED COUNTS (केवल ₹150 कार्ड्स के लिए) ===
+  const healthCardPatients = patients.filter(p => !isCampPatient(p));
+  const campOpdPatients = patients.filter(p => isCampPatient(p));
+
+  const totalCards = healthCardPatients.length;
+  const approvedCards = healthCardPatients.filter(p => String(p.admin_status).toUpperCase() === "APPROVED").length;
+  const allOnlinePaidPatients = healthCardPatients.filter(isOnlinePaid);
   const totalSeniorCitizens = patients.filter(isSeniorCitizen).length;
 
-  const pendingApprovals = patients.filter(p => 
+  const pendingApprovals = healthCardPatients.filter(p => 
     String(p.admin_status).toUpperCase() !== "APPROVED" && 
     String(p.admin_status).toUpperCase() !== "REJECTED" &&
     p.payment_mode === "PAY_TO_FO"
   );
 
-  const directOnlinePatients = patients.filter(isDirectPatient);
-  const foCreatedPatients = patients.filter(p => !isDirectPatient(p));
+  const directOnlinePatients = healthCardPatients.filter(isDirectPatient);
+  const foCreatedPatients = healthCardPatients.filter(p => !isDirectPatient(p));
 
   const directPaidCount = directOnlinePatients.filter(isOnlinePaid).length;
   const foPaidCount = foCreatedPatients.filter(p => p.payment_status === "PAID").length;
@@ -625,7 +638,7 @@ function AdminDashboard() {
 
   // 1️⃣ ANALYTICS TAB
   const renderAnalytics = () => {
-    const filteredByLocation = patients.filter(p => {
+    const filteredByLocation = healthCardPatients.filter(p => {
       if (filterDistrict !== "All" && p.district !== filterDistrict) return false;
       if (filterBlock !== "All" && p.block !== filterBlock) return false;
       return true;
@@ -698,7 +711,7 @@ function AdminDashboard() {
               <option value="online_paid">💳 Online Paid Cards (ऑनलाइन पेमेंट से कितने बने)</option>
               <option value="health_card">🪪 Total Health Cards (सभी कार्ड्स विवरण)</option>
               <option value="team">👥 Team Stats & Performance</option>
-              <option value="camp_patient">🏕️ Camp Patients (OPD)</option>
+              <option value="camp_patient">🏕️ Camp Patients (Free OPD Registry)</option>
               <option value="hospital">🏥 Hospital Referrals</option>
             </select>
           </div>
@@ -813,7 +826,7 @@ function AdminDashboard() {
                 </>
               ) : (
                 (() => {
-                  const memberCards = patients.filter(p => String(p.fo_name).trim().toLowerCase() === String(filterMember).trim().toLowerCase());
+                  const memberCards = healthCardPatients.filter(p => String(p.fo_name).trim().toLowerCase() === String(filterMember).trim().toLowerCase());
                   const apprvd = memberCards.filter(p => String(p.admin_status).toUpperCase() === "APPROVED").length;
                   return (
                     <>
@@ -825,7 +838,7 @@ function AdminDashboard() {
                       <div style={styles.statCard}>
                         <h3>💳 Total Cards Created</h3>
                         <h2>{memberCards.length} Cards</h2>
-                        <p style={styles.smText}>Total Entries by this user</p>
+                        <p style={styles.smText}>Total ₹150 Cards by this user</p>
                       </div>
                       <div style={styles.statCard}>
                         <h3>✅ Approved Cards</h3>
@@ -841,7 +854,7 @@ function AdminDashboard() {
 
           {filterType === "health_card" && (
             <div style={styles.statsGrid}>
-              <div style={styles.statCard}><h3>💳 Total Cards</h3><h2>{totalCards}</h2><p style={styles.smText}>Total applied</p></div>
+              <div style={styles.statCard}><h3>💳 Total Cards</h3><h2>{totalCards}</h2><p style={styles.smText}>Total ₹150 applied</p></div>
               <div style={styles.statCard}><h3>💳 Online Paid</h3><h2 style={{color:"#2563eb"}}>{allOnlinePaidPatients.length}</h2><p style={styles.smText}>Auto Approved</p></div>
               <div style={styles.statCard}><h3>💰 Total Received</h3><h2 style={{color:"#16a34a"}}>₹{approvedCards * 150}</h2><p style={styles.smText}>{approvedCards} Cards Approved</p></div>
               <div style={styles.statCard}><h3>⏳ FO Pending</h3><h2 style={{color:"#ea580c"}}>₹{(totalCards - approvedCards) * 150}</h2><p style={styles.smText}>{(totalCards - approvedCards)} Cards Pending</p></div>
@@ -850,7 +863,7 @@ function AdminDashboard() {
 
           {filterType === "camp_patient" && (
             <div style={styles.statsGrid}>
-              <div style={styles.statCard}><h3>🏕️ Total Patients</h3><h2>{totalCards}</h2><p style={styles.smText}>Registered in System</p></div>
+              <div style={styles.statCard}><h3>🏕️ Total Free OPD</h3><h2>{campOpdPatients.length}</h2><p style={styles.smText}>Camp Registrations (No Card)</p></div>
               <div style={styles.statCard}><h3>✅ Total Camps</h3><h2 style={{color:"#16a34a"}}>{campsList.length}</h2><p style={styles.smText}>Successfully organized</p></div>
               <div style={styles.statCard}><h3>🚑 Referred</h3><h2 style={{color:"#dc2626"}}>{patients.filter(p=>p.is_referred==="Yes").length}</h2><p style={styles.smText}>Need higher center</p></div>
             </div>
@@ -1165,45 +1178,64 @@ function AdminDashboard() {
   // 7️⃣ MASTER DB TAB
   const renderMaster = () => (
     <div style={styles.tabContent}>
-      <h3 style={styles.sectionTitle}>🗂️ Master Database (All Patient Cards)</h3>
+      <h3 style={styles.sectionTitle}>🗂️ Master Database (All Patient Cards & OPD Registry)</h3>
       <table style={styles.table}>
         <thead>
           <tr style={styles.trHead}>
             <th>ID</th>
             <th>Name & Mobile</th>
             <th>Location</th>
-            <th>Source / Payment</th>
+            <th>Source / Category</th>
             <th>Payment & Status</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
           {patients.map(p => {
+            const isCamp = isCampPatient(p);
             const isOnline = isOnlinePaid(p);
             return (
               <tr key={p.id} style={styles.trBody}>
                 <td style={styles.td}>#{p.id}</td>
                 <td style={styles.td}>
                   <strong>{p.patient_name}</strong><br/>
-                  <span style={styles.smText}>📱 +91 {p.mobile}</span>
+                  <span style={styles.smText}>📱 +91 {p.mobile || "N/A"}</span>
                 </td>
-                <td style={styles.td}>{p.village}, {p.block}, {p.district}</td>
+                <td style={styles.td}>{p.village || "-"}, {p.block || "-"}, {p.district || "-"}</td>
                 <td style={styles.td}>
-                  <span style={{background: isOnline ? "#dcfce7" : "#fff7ed", color: isOnline ? "#166534" : "#c2410c", padding: "3px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold"}}>
-                    {isOnline ? "💳 Online Paid" : "💵 FO Cash"}
-                  </span>
-                </td>
-                <td style={styles.td}>
-                  <span style={{
-                    background: String(p.admin_status).toUpperCase() === "APPROVED" ? "#dcfce7" : String(p.admin_status).toUpperCase() === "REJECTED" ? "#fee2e2" : "#fef3c7",
-                    color: String(p.admin_status).toUpperCase() === "APPROVED" ? "#166534" : String(p.admin_status).toUpperCase() === "REJECTED" ? "#991b1b" : "#92400e",
-                    padding: "4px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold"
-                  }}>
-                    {p.admin_status || "PENDING"}
-                  </span>
+                  {isCamp ? (
+                    <span style={{background: "#e0f2fe", color: "#0369a1", padding: "3px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold"}}>
+                      🏕️ Free Camp OPD
+                    </span>
+                  ) : (
+                    <span style={{background: isOnline ? "#dcfce7" : "#fff7ed", color: isOnline ? "#166534" : "#c2410c", padding: "3px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: "bold"}}>
+                      {isOnline ? "💳 Online Paid" : "💵 FO Cash"}
+                    </span>
+                  )}
                 </td>
                 <td style={styles.td}>
-                  <button onClick={() => window.open(`/health-card/${p.id}`,"_blank")} style={styles.btnView}>👁️ View</button>
+                  {isCamp ? (
+                    <span style={{background: "#f0fdf4", color: "#166534", padding: "4px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold"}}>
+                      OPD CONSULTED
+                    </span>
+                  ) : (
+                    <span style={{
+                      background: String(p.admin_status).toUpperCase() === "APPROVED" ? "#dcfce7" : String(p.admin_status).toUpperCase() === "REJECTED" ? "#fee2e2" : "#fef3c7",
+                      color: String(p.admin_status).toUpperCase() === "APPROVED" ? "#166534" : String(p.admin_status).toUpperCase() === "REJECTED" ? "#991b1b" : "#92400e",
+                      padding: "4px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: "bold"
+                    }}>
+                      {p.admin_status || "PENDING"}
+                    </span>
+                  )}
+                </td>
+                <td style={styles.td}>
+                  {isCamp ? (
+                    <span style={{fontSize: "11px", color: "#64748b", fontWeight: "bold", marginRight: "8px"}}>
+                      📋 No Card
+                    </span>
+                  ) : (
+                    <button onClick={() => window.open(`/health-card/${p.id}`,"_blank")} style={styles.btnView}>👁️ View</button>
+                  )}
                   <button onClick={() => handleDelete(p.id)} style={styles.btnDeleteSm}>🗑️</button>
                 </td>
               </tr>
