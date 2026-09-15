@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import html2canvas from "html2canvas";
-import { QRCodeCanvas } from "qrcode.react"; // 👈 QR Code बनाने वाली लाइब्रेरी
+import { QRCodeCanvas } from "qrcode.react";
 
 import logo from "../assets/jeevsathi/logo.png"; 
 import signature from "../assets/jeevsathi/signature.png"; 
@@ -132,14 +132,13 @@ function HealthCard() {
         
       if (!error) {
         setPatient(data);
-        setSelectedForPrint([data.id]); // डिफ़ॉल्ट रूप से चालू कार्ड सेलेक्टेड
+        setSelectedForPrint([data.id]);
       }
       setLoading(false);
     };
     fetchPatient();
   }, [finalId]);
 
-  // जब 4 कार्ड वाला मोडल खोलें तो बाकी मरीजों की सूची लोड करें
   const openMultiCardModal = async () => {
     setShowMultiModal(true);
     try {
@@ -210,7 +209,6 @@ function HealthCard() {
 
   const qrVerificationUrl = `${window.location.origin}/verify/${patient.id}`;
 
-  // 4 चुने गए मरीजों का डेटा
   const multiPrintData = allPatientsList.filter(p => selectedForPrint.includes(p.id));
   if (patient && !multiPrintData.find(p => p.id === patient.id) && selectedForPrint.includes(patient.id)) {
     multiPrintData.push(patient);
@@ -233,9 +231,7 @@ function HealthCard() {
         </div>
       </div>
 
-      {/* =========================================================
-          1️⃣ SINGLE CARD VIEW (DEFAULT SCREEN & SINGLE PRINT)
-      ========================================================= */}
+      {/* 1️⃣ SINGLE CARD VIEW */}
       {!isMultiPrinting && (
         <div style={styles.cardContainer} ref={cardRef}>
           {/* FRONT SIDE */}
@@ -339,9 +335,7 @@ function HealthCard() {
         </div>
       )}
 
-      {/* =========================================================
-          2️⃣ MULTI-CARD (4 CARDS) PRINT VIEW (A4 SHEET)
-      ========================================================= */}
+      {/* 2️⃣ MULTI-CARD (4 CARDS) PRINT VIEW */}
       {isMultiPrinting && (
         <div style={styles.multiCardGrid}>
           {multiPrintData.slice(0, 4).map((p) => (
@@ -350,9 +344,7 @@ function HealthCard() {
         </div>
       )}
 
-      {/* =========================================================
-          🗂️ MODAL: SELECT UP TO 4 CARDS FOR A4 PRINT
-      ========================================================= */}
+      {/* 🗂️ MODAL: SELECT UP TO 4 CARDS FOR A4 PRINT */}
       {showMultiModal && (
         <div style={styles.modalOverlay} onClick={() => setShowMultiModal(false)}>
           <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
@@ -457,7 +449,6 @@ const styles = {
   
   cardContainer: { display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center", padding: "10px" },
   
-  // 🖨️ Multi-Card A4 Print Container Grid
   multiCardGrid: { display: "flex", flexDirection: "column", gap: "15px", alignItems: "center", width: "100%" },
 
   cardFront: { position: "relative", width: "350px", height: "220px", background: "linear-gradient(135deg, #ffffff 0%, #e8f5ec 100%)", borderRadius: "12px", overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.15)", border: "1px solid #cce4d6", display: "flex", flexDirection: "column", boxSizing: "border-box", pageBreakInside: "avoid" },
@@ -501,11 +492,11 @@ const styles = {
   footerText: { fontSize: "8px", color: "#6b7280", lineHeight: "1.4" },
   
   authBox: { position: "absolute", bottom: "8px", right: "12px", display: "flex", flexDirection: "column", alignItems: "center", width: "105px", zIndex: 10 },
-  stampImg: { position: "absolute", width: "100px", height: "100px", opacity: 0.32, bottom: "-2px", right: "0px", zIndex: 0, objectFit: "contain" }, 
+  // 🚀 मोहर (Stamp) का साइज़ 80px से बढ़ाकर 105px कर दिया गया है
+  stampImg: { position: "absolute", width: "105px", height: "105px", opacity: 0.32, bottom: "-2px", right: "0px", zIndex: 0, objectFit: "contain" }, 
   signImg: { position: "relative", width: "95px", height: "35px", objectFit: "contain", zIndex: 1, marginBottom: "2px" }, 
   authText: { position: "relative", margin: 0, fontSize: "7px", fontWeight: "bold", color: "#173b2a", borderTop: "1px solid #173b2a", width: "100%", textAlign: "center", paddingTop: "2px", zIndex: 1 },
 
-  // 🗂️ Modal Styles
   modalOverlay: { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999, padding: "15px" },
   modalContent: { background: "white", borderRadius: "12px", width: "100%", maxWidth: "600px", padding: "20px", boxShadow: "0 20px 40px rgba(0,0,0,0.2)" }
 };
